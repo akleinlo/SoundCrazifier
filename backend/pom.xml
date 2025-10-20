@@ -72,6 +72,14 @@
         </dependency>
     </dependencies>
 
+    <repositories>
+        <repository>
+            <id>github</id>
+            <url>https://maven.pkg.github.com/akleinlo/SoundCrazifier</url>
+        </repository>
+    </repositories>
+
+
     <build>
         <plugins>
             <plugin>
