@@ -39,6 +39,8 @@
             <groupId>org.csound</groupId>
             <artifactId>csound</artifactId>
             <version>6.18.1</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/libs/csound.jar</systemPath>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
