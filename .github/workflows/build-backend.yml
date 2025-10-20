@@ -1,4 +1,5 @@
 name: SonarQube-Backend
+
 on:
   push:
     branches:
@@ -12,16 +13,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 1️⃣ Code auschecken
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Shallow clones sollten deaktiviert sein
+          fetch-depth: 0  # wichtig für SonarQube
 
+      # 2️⃣ Java einrichten
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:
           java-version: 17
           distribution: 'zulu'
 
+      # 3️⃣ SonarQube Cache
       - name: Cache SonarQube packages
         uses: actions/cache@v4
         with:
@@ -29,6 +33,7 @@ jobs:
           key: ${{ runner.os }}-sonar
           restore-keys: ${{ runner.os }}-sonar
 
+      # 4️⃣ Maven Cache
       - name: Cache Maven packages
         uses: actions/cache@v4
         with:
@@ -36,13 +41,21 @@ jobs:
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
 
+      # 5️⃣ Lokale Csound-JAR installieren 💡
+      - name: Install local Csound JAR
+        run: |
+          mvn install:install-file \
+            -Dfile=backend/lib/csound-6.18.1.jar \
+            -DgroupId=org.csound \
+            -DartifactId=csound \
+            -Dversion=6.18.1 \
+            -Dpackaging=jar
+
+      # 6️⃣ Backend bauen + Sonar-Analyse
       - name: Build and analyze
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          GITHUB_USERNAME: ${{ secrets.MY_GITHUB_USERNAME }}
-          GITHUB_TOKEN: ${{ secrets.MY_GITHUB_SECRET }}
         working-directory: backend
         run: |
-          mkdir -p ~/.m2
-          echo "<settings xmlns='http://maven.apache.org/SETTINGS/1.0.0' xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' xsi:schemaLocation='http://maven.apache.org/SETTINGS/1.0.0 https://maven.apache.org/xsd/settings-1.0.0.xsd'><servers><server><id>github</id><username>${GITHUB_USERNAME}</username><password>${GITHUB_TOKEN}</password></server></servers></settings>" > ~/.m2/settings.xml
-          mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=akleinlo_SoundCrazifier_backend
+          mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
+            -Dsonar.projectKey=akleinlo_SoundCrazifier_backend

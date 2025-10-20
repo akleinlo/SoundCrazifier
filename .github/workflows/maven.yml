@@ -2,20 +2,29 @@ name: Java CI with Maven
 
 on:
   push:
-    
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
-    - name: Set up JDK
-      uses: actions/setup-java@v4
-      with:
-        java-version: '17'
-        distribution: 'temurin'
-        cache: maven
-    - name: Build with Maven
-      run: mvn -B package --file backend/pom.xml
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Install local Csound JAR
+        run: |
+          mvn install:install-file \
+            -Dfile=backend/lib/csound-6.18.1.jar \
+            -DgroupId=org.csound \
+            -DartifactId=csound \
+            -Dversion=6.18.1 \
+            -Dpackaging=jar
+
+      - name: Build with Maven
+        run: mvn -B package --file backend/pom.xml
