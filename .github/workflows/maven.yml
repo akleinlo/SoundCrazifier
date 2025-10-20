@@ -20,7 +20,7 @@ jobs:
       - name: Install local Csound JAR
         run: |
           mvn install:install-file \
-            -Dfile=backend/lib/csound-6.18.1.jar \
+            -Dfile=backend/lib/csound.jar \
             -DgroupId=org.csound \
             -DartifactId=csound \
             -Dversion=6.18.1 \
