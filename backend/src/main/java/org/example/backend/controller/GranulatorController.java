@@ -1,7 +1,6 @@
 package org.example.backend.controller;
 
 import org.example.backend.service.GranulatorService;
-import org.example.backend.service.SoXConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ClassPathResource;
@@ -20,7 +19,7 @@ public class GranulatorController {
     private static final Logger logger = LoggerFactory.getLogger(GranulatorController.class);
     private final GranulatorService granulatorService;
 
-    public GranulatorController(GranulatorService granulatorService, SoXConverter soxConverter) {
+    public GranulatorController(GranulatorService granulatorService) {
         this.granulatorService = granulatorService;
     }
 
