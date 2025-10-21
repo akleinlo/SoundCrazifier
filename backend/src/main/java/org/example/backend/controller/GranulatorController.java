@@ -1,12 +1,15 @@
 package org.example.backend.controller;
 
 import org.example.backend.service.GranulatorService;
+import org.example.backend.service.SoXConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -15,69 +18,66 @@ import java.nio.file.Path;
 public class GranulatorController {
 
     private static final Logger logger = LoggerFactory.getLogger(GranulatorController.class);
-
     private final GranulatorService granulatorService;
 
-    public GranulatorController(GranulatorService granulatorService) {
+    public GranulatorController(GranulatorService granulatorService, SoXConverter soxConverter) {
         this.granulatorService = granulatorService;
     }
 
     /**
-     * Endpoint for uploading an ORC and SCO file and starting a granulation process.
-     * Both files are written to secure temporary files and processed asynchronously.
-     *
-     * @param orcFile uploaded Csound orchestra file
-     * @param scoFile uploaded Csound score file
-     * @return simple status message ("Granulation started!")
-     * @throws IOException if file creation or writing fails
+     * Endpoint: Nimmt eine Audio-Datei, ersetzt im Score den Pfad,
+     * und startet die Granulation mit dem festen ORC.
      */
+    @PostMapping("/upload")
+    public String uploadAndGranulate(@RequestParam("audioFile") MultipartFile audioFile) throws IOException {
 
-    @PostMapping("/perform")
-    public String performGranulation(
-            @RequestParam("orc") MultipartFile orcFile,
-            @RequestParam("sco") MultipartFile scoFile
-    ) throws IOException {
-
-        // Checking whether granulation is currently running
         if (granulatorService.isRunning()) {
             logger.info("Granulation request rejected: already running.");
             return "Granulation already running!";
         }
 
-        // 🟢 Use system temp directory, which is OS-specific (e.g. /tmp on Unix, AppData on Windows)
+        // 🟢 Use system temp directory
         String tempDir = System.getProperty("java.io.tmpdir");
 
-        // 🟢 Create temporary files with safe, unique names
-        Path tempOrc = Files.createTempFile(Path.of(tempDir), "granular-", ".orc");
+        // 🟢 Create temp files
+        Path tempAudio = Files.createTempFile(Path.of(tempDir), "audio-", ".wav");
         Path tempSco = Files.createTempFile(Path.of(tempDir), "granular-", ".sco");
 
-        // 🟢 Log file creation for easier debugging and traceability
-        logger.info("Temporary ORC file created at {}", tempOrc);
+        // 🟢 Save uploaded audio file
+        Files.write(tempAudio, audioFile.getBytes());
+        logger.info("Temporary audio file created at {}", tempAudio);
+
+        // 🟢 Load score template from resources
+        var scoTemplate = new ClassPathResource("csound/granular.sco");
+        String scoContent = Files.readString(scoTemplate.getFile().toPath(), StandardCharsets.UTF_8);
+
+        // 🟢 Replace f-table line dynamically
+        // Example in template: f1 0 1048576 1 "REPLACE_ME" 0 0 0
+        String replaced = scoContent.replace("\"REPLACE_ME\"", "\"" + tempAudio.toAbsolutePath() + "\"");
+
+        // 🟢 Write modified SCO
+        Files.writeString(tempSco, replaced, StandardCharsets.UTF_8);
         logger.info("Temporary SCO file created at {}", tempSco);
 
-        // 🟢 Write uploaded bytes directly to the temporary files
-        //    This avoids keeping large files in memory unnecessarily
-        Files.write(tempOrc, orcFile.getBytes());
-        Files.write(tempSco, scoFile.getBytes());
+        // 🟢 Fixed ORC file in resources
+        var orcResource = new ClassPathResource("csound/granular.orc");
+        Path orcPath = orcResource.getFile().toPath();
 
-        // 🟢 Run the Csound process asynchronously to avoid blocking the HTTP request thread
+        // 🟢 Run asynchronously
         new Thread(() -> {
             try {
-                String result = granulatorService.performGranulationOnce(tempOrc, tempSco, true);
+                String result = granulatorService.performGranulationOnce(orcPath, tempSco, false);
                 logger.info("Granulation result: {}", result);
             } catch (IOException e) {
-                // 🟢 Use proper logging instead of printStackTrace for better observability
                 logger.error("Granulation failed", e);
             } finally {
-                // 🟢 Always clean up temporary files
                 try {
-                    Files.deleteIfExists(tempOrc);
+                    Files.deleteIfExists(tempAudio);
                     Files.deleteIfExists(tempSco);
                 } catch (IOException e) {
                     logger.warn("Could not delete temp files", e);
                 }
             }
-
         }).start();
 
         return "Granulation started!";
