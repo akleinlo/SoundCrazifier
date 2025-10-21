@@ -1,7 +1,9 @@
-sr      = 96000
+sr      = 44100
 ksmps   = 1
 nchnls  = 2
 0dbfs   = 1
+
+seed 0
 
 ;---------------------------------------------------------
 ; Granular Instrument – controlled by p-fields

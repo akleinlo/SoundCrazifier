@@ -11,37 +11,43 @@ import java.nio.file.Path;
 public class GranulatorService {
 
     /**
-     * Führt die Granular-Synthese für eine ORC- und SCO-Datei durch.
+     * Performs granular synthesis for an ORC and SCO file.
      *
-     * @param orcPath Pfad zur ORC-Datei
-     * @param scoPath Pfad zur SCO-Datei
-     * @param outputLive true = live playback, false = Render zu WAV
+     * @param orcPath     Path to the ORC file
+     * @param scoPath     PPath to the SCO file
+     * @param outputLive  true = live playback, false = Render to WAV
      * @throws IOException
      */
     public void performGranulation(Path orcPath, Path scoPath, boolean outputLive) throws IOException {
-        Csound c = new Csound();
+        Csound csound = new Csound();
 
-        // Dateien einlesen
-        String orc = Files.readString(orcPath);
-        String sco = Files.readString(scoPath);
+        try {
+            // import files
+            String orc = Files.readString(orcPath);
+            String sco = Files.readString(scoPath);
 
-        // DAC oder WAV Output
-        if (outputLive) {
-            c.SetOption("-odac2");          // live playback
-        } else {
-            c.SetOption("-o granulated.wav"); // als WAV rendern
+            // DAC or WAV Output
+            if (outputLive) {
+                csound.SetOption("-odac2"); // Live playback
+            } else {
+                csound.SetOption("-o granulated.wav"); // Render to WAV
+            }
+
+            // prepare Csound
+            csound.CompileOrc(orc);
+            csound.ReadScore(sco);
+            csound.Start();
+
+            // play SCO
+            while (csound.PerformKsmps() == 0) {
+                // läuft bis Ende des SCO
+            }
+
+        } finally {
+            // Clean up, even if errors occur
+            csound.Stop();
+            csound.Reset();
+            csound.Cleanup();
         }
-
-        // Csound vorbereiten
-        c.CompileOrc(orc);
-        c.ReadScore(sco);
-        c.Start();
-
-        while (c.PerformKsmps() == 0) {
-            // läuft bis Ende des SCO
-        }
-
-        c.Stop();
-        c.Cleanup();
     }
 }
