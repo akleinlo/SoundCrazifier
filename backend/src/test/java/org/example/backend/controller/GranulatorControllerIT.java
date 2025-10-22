@@ -15,7 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
-public class GranulatorControllerIT {
+class GranulatorControllerIT {
 
     @Autowired
     private MockMvc mockMvc;

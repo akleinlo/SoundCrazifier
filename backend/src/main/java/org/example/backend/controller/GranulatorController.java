@@ -12,6 +12,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+@CrossOrigin(origins = "http://localhost:5173")
 @RestController
 @RequestMapping("/granulator")
 public class GranulatorController {
