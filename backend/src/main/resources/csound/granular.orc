@@ -67,6 +67,11 @@ kgdurCpsMin     =       p25
 kgdurCpsMax     =       p26
 kgdur         rspline   kgdurMin, kgdurMax, kgdurCpsMin, kgdurCpsMax
 
+; Security check: Grain length must not be 0
+if kgdur <= 0 then
+   kgdur = 0.001 ; Minimum 1 ms
+endif
+
 ;--------------------------------------
 ; Tables & grain synthesis
 ;--------------------------------------
