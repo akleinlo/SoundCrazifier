@@ -46,7 +46,7 @@ public class GranulatorService {
     /**
      * Internal method that actually performs the granulation.
      */
-    private void performGranulation(Path orcPath, Path scoPath, boolean outputLive) throws IOException {
+    protected void performGranulation(Path orcPath, Path scoPath, boolean outputLive) throws IOException {
         Csound csound = new Csound();
 
         try {

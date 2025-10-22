@@ -20,6 +20,7 @@ public class GranulatorController {
     private final GranulatorService granulatorService;
 
     public GranulatorController(GranulatorService granulatorService) {
+
         this.granulatorService = granulatorService;
     }
 
@@ -65,7 +66,7 @@ public class GranulatorController {
         // 🟢 Run asynchronously
         new Thread(() -> {
             try {
-                String result = granulatorService.performGranulationOnce(orcPath, tempSco, false);
+                String result = granulatorService.performGranulationOnce(orcPath, tempSco, true);
                 logger.info("Granulation result: {}", result);
             } catch (IOException e) {
                 logger.error("Granulation failed", e);
