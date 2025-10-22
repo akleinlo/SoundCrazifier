@@ -12,7 +12,7 @@ import java.nio.file.Paths;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class GranulatorServiceTest {
+class GranulatorServiceTest {
 
     private GranulatorService granulatorService;
 
