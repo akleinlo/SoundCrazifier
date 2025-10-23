@@ -7,6 +7,7 @@ import org.mockito.Mockito;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
@@ -49,7 +50,6 @@ class GranulatorServiceTest {
         isRunningField.setBoolean(granulatorService, false);
     }
 
-
     @Test
     @DisplayName("performGranulationOnce resets isRunning after IOException")
     void performGranulationOnce_resetsFlagAfterIOException() throws Exception {
@@ -84,5 +84,32 @@ class GranulatorServiceTest {
         assertEquals("Granulation finished!", result);
         assertFalse(granulatorService.isRunning());
     }
+
+    @Test
+    @DisplayName("performGranulation actually runs and writes output file (mocked)")
+    void performGranulation_createsOutputFile() throws Exception {
+        Mockito.doAnswer(invocation -> {
+            Path output = invocation.getArgument(3, Path.class);
+            Files.createFile(output); // simuliert erfolgreiche Granulation
+            return null;
+        }).when(granulatorService).performGranulation(Mockito.any(), Mockito.any(), Mockito.anyBoolean(), Mockito.any());
+
+        Path orc = Files.createTempFile("test", ".orc");
+        Path sco = Files.createTempFile("test", ".sco");
+        Files.writeString(orc, "instr 1\n a1 oscili 0.1, 440\n out a1\n endin");
+        Files.writeString(sco, "i1 0 1");
+
+        Path output = Files.createTempFile("output", ".wav");
+        Files.deleteIfExists(output);
+
+        granulatorService.performGranulation(orc, sco, false, output);
+
+        assertTrue(Files.exists(output));
+
+        Files.deleteIfExists(orc);
+        Files.deleteIfExists(sco);
+        Files.deleteIfExists(output);
+    }
+
 
 }

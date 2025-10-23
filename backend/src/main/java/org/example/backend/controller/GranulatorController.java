@@ -32,9 +32,9 @@ public class GranulatorController {
      */
     @PostMapping("/play")
     public String playAudio(@RequestParam("audioFile") MultipartFile audioFile) throws IOException {
-        logger.info("Received /play request: {}", audioFile.getOriginalFilename());
+        logger.info("/play request received");
         handleGranulationSync(audioFile, true);
-        logger.info("Granulation started for {}", audioFile.getOriginalFilename());
+        logger.info("Granulation started");
         return "Granulation playing!";
     }
 
