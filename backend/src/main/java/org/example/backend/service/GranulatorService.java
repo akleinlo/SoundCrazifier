@@ -32,12 +32,13 @@ public class GranulatorService {
     }
 
     protected void performGranulation(Path orcPath, Path scoPath, boolean outputLive, Path outputPath) throws IOException {
+        // Optional: isolated temporary directory for granulation
+        Path tempDir = Files.createTempDirectory("granulator-");
+
         // Determine secure output path
         Path effectiveOutput = outputPath != null
                 ? outputPath.toAbsolutePath()
-                : Files.createTempFile("granulated-", ".wav");
-
-        System.out.println("Effective output path: " + effectiveOutput);
+                : Files.createTempFile(tempDir, "granulated-", ".wav");
 
         if (effectiveOutput.getParent() != null) {
             Files.createDirectories(effectiveOutput.getParent());

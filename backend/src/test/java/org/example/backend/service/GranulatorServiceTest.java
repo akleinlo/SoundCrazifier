@@ -53,17 +53,35 @@ class GranulatorServiceTest {
     @Test
     @DisplayName("performGranulationOnce resets isRunning after IOException")
     void performGranulationOnce_resetsFlagAfterIOException() throws Exception {
-        // GIVEN
-        Mockito.doAnswer(invocation -> {
-            throw new IOException("Simulated IOException");
-        }).when(granulatorService).performGranulation(Mockito.any(), Mockito.any(), Mockito.anyBoolean(), Mockito.any());
+        Mockito.doThrow(new IOException("Simulated IOException"))
+                .when(granulatorService)
+                .performGranulation(Mockito.any(), Mockito.any(), Mockito.anyBoolean(), Mockito.any());
 
         assertFalse(granulatorService.isRunning());
+
         Path dummyOrc = Paths.get("does-not-matter.orc");
         Path dummySco = Paths.get("does-not-matter.sco");
 
-        // WHEN / THEN
-        assertThrows(IOException.class, () -> granulatorService.performGranulationOnce(dummyOrc, dummySco, false, null));
+        IOException ex = assertThrows(IOException.class, () ->
+                granulatorService.performGranulationOnce(dummyOrc, dummySco, false, null));
+        assertEquals("Simulated IOException", ex.getMessage());
+
+        assertFalse(granulatorService.isRunning(), "isRunning should be reset after exception");
+    }
+
+    @Test
+    @DisplayName("performGranulationOnce returns 'Granulation finished!' when successful")
+    void performGranulationOnce_success() throws Exception {
+        // mock performGranulation to do nothing
+        Mockito.doNothing()
+                .when(granulatorService)
+                .performGranulation(Mockito.any(), Mockito.any(), Mockito.anyBoolean(), Mockito.any());
+
+        Path dummyOrc = Paths.get("does-not-matter.orc");
+        Path dummySco = Paths.get("does-not-matter.sco");
+
+        String result = granulatorService.performGranulationOnce(dummyOrc, dummySco, false, null);
+        assertEquals("Granulation finished!", result);
         assertFalse(granulatorService.isRunning());
     }
 

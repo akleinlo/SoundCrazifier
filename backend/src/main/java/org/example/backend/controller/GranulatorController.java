@@ -6,7 +6,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -33,104 +32,67 @@ public class GranulatorController {
      */
     @PostMapping("/play")
     public String playAudio(@RequestParam("audioFile") MultipartFile audioFile) throws IOException {
-        return handleGranulation(audioFile, true, null);
+        logger.info("Received /play request: {}", audioFile.getOriginalFilename());
+        handleGranulationSync(audioFile, true);
+        logger.info("Granulation started for {}", audioFile.getOriginalFilename());
+        return "Granulation playing!";
     }
+
 
     /**
      * Saves the granulated audio to a user-specified path
      */
     @PostMapping("/save")
     public ResponseEntity<Resource> saveAudio(@RequestParam("audioFile") MultipartFile audioFile) throws IOException {
-        if (granulatorService.isRunning()) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).build(); // schon läuft
+        Path tempOutput = handleGranulationSync(audioFile, false);
+        if (tempOutput == null) {
+            throw new IllegalStateException("tempOutput should never be null in /save");
         }
-
-        String tempDir = System.getProperty("java.io.tmpdir");
-        Path tempAudio = Files.createTempFile(Path.of(tempDir), "audio-", ".wav");
-        Path tempSco = Files.createTempFile(Path.of(tempDir), "granular-", ".sco");
-
-        // Save upload file
-        Files.write(tempAudio, audioFile.getBytes());
-        logger.info("Temporary audio file created at {}", tempAudio);
-
-        // Load SCO template and replace path
-        var scoTemplate = new ClassPathResource("csound/granular.sco");
-        String scoContent = Files.readString(scoTemplate.getFile().toPath(), StandardCharsets.UTF_8);
-        String replaced = scoContent.replace("\"REPLACE_ME\"", "\"" + tempAudio.toAbsolutePath() + "\"");
-        Files.writeString(tempSco, replaced, StandardCharsets.UTF_8);
-        logger.info("Temporary SCO file created at {}", tempSco);
-
-        // Fixed ORC file
-        var orcResource = new ClassPathResource("csound/granular.orc");
-        Path orcPath = orcResource.getFile().toPath();
-
-        // Ausgabe-Pfad temporär auf Server
-        Path tempOutput = Files.createTempFile(Path.of(tempDir), "granulated-", ".wav");
-
-        // Execute granulation synchronously
-        granulatorService.performGranulationOnce(orcPath, tempSco, false, tempOutput);
-
-        // Return resource for download
         org.springframework.core.io.Resource resource = new org.springframework.core.io.PathResource(tempOutput);
 
-        String originalName = audioFile.getOriginalFilename() != null
-                ? audioFile.getOriginalFilename()
-                : "granulated.wav";
+        String originalName = audioFile.getOriginalFilename() != null ? audioFile.getOriginalFilename() : "granulated.wav";
         String downloadName = originalName.replace(".wav", "-granulated.wav");
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + downloadName + "\"")
                 .contentLength(Files.size(tempOutput))
                 .body(resource);
-
     }
 
 
     /**
      * Internal helper to avoid code duplication
      */
-    private String handleGranulation(MultipartFile audioFile, boolean live, Path outputPath) throws IOException {
-        if (granulatorService.isRunning()) {
-            logger.info("Granulation request rejected: already running.");
-            return "Granulation already running!";
-        }
-
+    private Path handleGranulationSync(MultipartFile audioFile, boolean live) throws IOException {
         String tempDir = System.getProperty("java.io.tmpdir");
         Path tempAudio = Files.createTempFile(Path.of(tempDir), "audio-", ".wav");
         Path tempSco = Files.createTempFile(Path.of(tempDir), "granular-", ".sco");
 
-        // Save uploaded audio file
         Files.write(tempAudio, audioFile.getBytes());
+        String scoContent = Files.readString(new ClassPathResource("csound/granular.sco").getFile().toPath(), StandardCharsets.UTF_8);
+        Files.writeString(tempSco, scoContent.replace("\"REPLACE_ME\"", "\"" + tempAudio.toAbsolutePath() + "\""), StandardCharsets.UTF_8);
+
+        Path orcPath = new ClassPathResource("csound/granular.orc").getFile().toPath();
+        Path tempOutput = live ? null : Files.createTempFile(Path.of(tempDir), "granulated-", ".wav");
+
         logger.info("Temporary audio file created at {}", tempAudio);
-
-        // Load and replace score template
-        var scoTemplate = new ClassPathResource("csound/granular.sco");
-        String scoContent = Files.readString(scoTemplate.getFile().toPath(), StandardCharsets.UTF_8);
-        String replaced = scoContent.replace("\"REPLACE_ME\"", "\"" + tempAudio.toAbsolutePath() + "\"");
-        Files.writeString(tempSco, replaced, StandardCharsets.UTF_8);
         logger.info("Temporary SCO file created at {}", tempSco);
-
-        // Fixed ORC file in resources
-        var orcResource = new ClassPathResource("csound/granular.orc");
-        Path orcPath = orcResource.getFile().toPath();
-
-        // Run asynchronously
-        new Thread(() -> {
-            try {
-                granulatorService.performGranulationOnce(orcPath, tempSco, live, outputPath);
-            } catch (IOException e) {
-                logger.error("Granulation failed", e);
-            } finally {
+        if (live) {
+            // async playback
+            new Thread(() -> {
                 try {
-                    Files.deleteIfExists(tempAudio);
-                    Files.deleteIfExists(tempSco);
+                    granulatorService.performGranulationOnce(orcPath, tempSco, true, null);
                 } catch (IOException e) {
-                    logger.warn("Could not delete temp files", e);
+                    logger.error("Granulation playback failed for {}", audioFile.getOriginalFilename(), e);
                 }
-            }
-        }).start();
-
-        return live ? "Granulation playing!" : "Granulation saving to " + outputPath;
+            }).start();
+            return null;
+        } else {
+            // synchronous render
+            granulatorService.performGranulationOnce(orcPath, tempSco, false, tempOutput);
+            return tempOutput;
+        }
     }
+
 }
 
