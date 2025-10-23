@@ -10,32 +10,20 @@ import java.nio.file.Path;
 @Service
 public class GranulatorService {
 
-    // Flag indicating whether granulation is currently running
     private volatile boolean isRunning = false;
 
     public boolean isRunning() {
         return isRunning;
     }
 
-    /**
-     * Performs granular synthesis for an ORC and SCO file.
-     * Only allows one granulation at a time.
-     *
-     * @param orcPath    Path to the ORC file
-     * @param scoPath    Path to the SCO file
-     * @param outputLive true = live playback, false = Render to WAV
-     * @return a message indicating whether granulation started or is already running
-     * @throws IOException if reading the ORC or SCO file fails
-     */
-
-    public synchronized String performGranulationOnce(Path orcPath, Path scoPath, boolean outputLive) throws IOException {
+    public synchronized String performGranulationOnce(Path orcPath, Path scoPath, boolean outputLive, Path outputPath) throws IOException {
         if (isRunning) {
             return "Granulation already running!";
         }
 
         isRunning = true;
         try {
-            performGranulation(orcPath, scoPath, outputLive);
+            performGranulation(orcPath, scoPath, outputLive, outputPath);
         } finally {
             isRunning = false;
         }
@@ -43,36 +31,50 @@ public class GranulatorService {
         return "Granulation finished!";
     }
 
-    /**
-     * Internal method that actually performs the granulation.
-     */
-    protected void performGranulation(Path orcPath, Path scoPath, boolean outputLive) throws IOException {
+    protected void performGranulation(Path orcPath, Path scoPath, boolean outputLive, Path outputPath) throws IOException {
+        // Determine secure output path
+        Path effectiveOutput = outputPath != null
+                ? outputPath.toAbsolutePath()
+                : Files.createTempFile("granulated-", ".wav");
+
+        System.out.println("Effective output path: " + effectiveOutput);
+
+        if (effectiveOutput.getParent() != null) {
+            Files.createDirectories(effectiveOutput.getParent());
+        }
+
         Csound csound = new Csound();
 
         try {
-            // import files
+            // Import files
             String orc = Files.readString(orcPath);
             String sco = Files.readString(scoPath);
 
-            // DAC or WAV Output
+            // Output mode
             if (outputLive) {
-                csound.SetOption("-odac2"); // Live playback
+                csound.SetOption("-odac");
             } else {
-                csound.SetOption("-o granulated.wav"); // Render to WAV
+                csound.SetOption("-o" + effectiveOutput);
             }
 
-            // prepare Csound
+            System.out.println("--- ORC content ---");
+            System.out.println(orc);
+            System.out.println("--- SCO content ---");
+            System.out.println(sco);
+
+
+            // Prepare and run Csound
             csound.CompileOrc(orc);
             csound.ReadScore(sco);
             csound.Start();
 
-            // play SCO
             while (csound.PerformKsmps() == 0) {
-                // runs until the end of the SCO
+                // Runs until end
             }
 
+            System.out.println("Granulation complete.");
+
         } finally {
-            // Clean up, even if errors occur
             csound.Stop();
             csound.Reset();
             csound.Cleanup();
