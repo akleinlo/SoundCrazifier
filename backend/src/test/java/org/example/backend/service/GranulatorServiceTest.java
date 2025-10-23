@@ -40,7 +40,7 @@ class GranulatorServiceTest {
         Path dummySco = Paths.get("does-not-matter.sco");
 
         // WHEN
-        String result = granulatorService.performGranulationOnce(dummyOrc, dummySco, false);
+        String result = granulatorService.performGranulationOnce(dummyOrc, dummySco, false, null);
 
         // THEN
         assertEquals("Granulation already running!", result);
@@ -56,14 +56,14 @@ class GranulatorServiceTest {
         // GIVEN
         Mockito.doAnswer(invocation -> {
             throw new IOException("Simulated IOException");
-        }).when(granulatorService).performGranulation(Mockito.any(), Mockito.any(), Mockito.anyBoolean());
+        }).when(granulatorService).performGranulation(Mockito.any(), Mockito.any(), Mockito.anyBoolean(), Mockito.any());
 
         assertFalse(granulatorService.isRunning());
         Path dummyOrc = Paths.get("does-not-matter.orc");
         Path dummySco = Paths.get("does-not-matter.sco");
 
         // WHEN / THEN
-        assertThrows(IOException.class, () -> granulatorService.performGranulationOnce(dummyOrc, dummySco, false));
+        assertThrows(IOException.class, () -> granulatorService.performGranulationOnce(dummyOrc, dummySco, false, null));
         assertFalse(granulatorService.isRunning());
     }
 
