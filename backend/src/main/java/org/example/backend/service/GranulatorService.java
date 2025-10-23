@@ -1,20 +1,21 @@
 package org.example.backend.service;
 
 import csnd6.Csound;
+import lombok.Getter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+@Getter
 @Service
 public class GranulatorService {
 
     private volatile boolean isRunning = false;
-
-    public boolean isRunning() {
-        return isRunning;
-    }
+    private static final Logger logger = LoggerFactory.getLogger(GranulatorService.class);
 
     public synchronized String performGranulationOnce(Path orcPath, Path scoPath, boolean outputLive, Path outputPath) throws IOException {
         if (isRunning) {
@@ -58,10 +59,10 @@ public class GranulatorService {
                 csound.SetOption("-o" + effectiveOutput);
             }
 
-            System.out.println("--- ORC content ---");
-            System.out.println(orc);
-            System.out.println("--- SCO content ---");
-            System.out.println(sco);
+            logger.debug("--- ORC content ---");
+            logger.debug(orc);
+            logger.debug("--- SCO content ---");
+            logger.debug(sco);
 
 
             // Prepare and run Csound
@@ -73,7 +74,7 @@ public class GranulatorService {
                 // Runs until end
             }
 
-            System.out.println("Granulation complete.");
+            logger.info("Granulation complete.");
 
         } finally {
             csound.Stop();
