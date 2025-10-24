@@ -66,8 +66,7 @@ public class GranulatorService {
                 real.CompileOrc(orc);
                 real.ReadScore(sco);
                 real.Start();
-                while (real.PerformKsmps() == 0) {
-                }
+                while (real.PerformKsmps() == 0) {}
                 logger.info("Granulation complete.");
 
                 real.Stop();
