@@ -55,7 +55,12 @@ public class GranulatorService {
 
             if (csound instanceof Csound real) {
                 if (outputLive) real.SetOption("-odac");
-                else real.SetOption("-o" + effectiveOutput);
+                else {
+                    real.SetOption("-o" + effectiveOutput);
+                    real.SetOption("--format=float");      // 32-bit float
+                    real.SetOption("-r96000");   // 96kHz
+
+                }
 
                 logger.debug("--- ORC content ---");
                 logger.debug(orc);

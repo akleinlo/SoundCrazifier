@@ -1,4 +1,5 @@
 package org.example.backend.controller;
+
 import org.example.backend.service.GranulatorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -8,19 +9,23 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+
 @CrossOrigin(origins = "http://localhost:5173")
 @RestController
 @RequestMapping("/granulator")
 public class GranulatorController {
     private static final Logger logger = LoggerFactory.getLogger(GranulatorController.class);
     private final GranulatorService granulatorService;
+
     public GranulatorController(GranulatorService granulatorService) {
         this.granulatorService = granulatorService;
     }
+
     /**
      * Plays the granulated audio live
      */
@@ -52,6 +57,7 @@ public class GranulatorController {
                 .contentLength(Files.size(tempOutput))
                 .body(resource);
     }
+
     /**
      * Internal helper to avoid code duplication
      */
@@ -66,6 +72,7 @@ public class GranulatorController {
         Path tempOutput = live ? null : Files.createTempFile(Path.of(tempDir), "granulated-", ".wav");
         logger.info("Temporary audio file created at {}", tempAudio);
         logger.info("Temporary SCO file created at {}", tempSco);
+
         if (live) {
             // async playback
             new Thread(() -> {
