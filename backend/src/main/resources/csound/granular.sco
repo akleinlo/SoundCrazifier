@@ -3,7 +3,7 @@
 ;=============================================
 
 ; f1 = Audiofile (Mono or Stereo WAV)
-f1 0 1048576 1 "REPLACE_ME" 0 0 0
+f1 0 0 1 "REPLACE_ME" 0 0 0
 
 ; optional: Sine-Wave-Test (not necessary, as it is generated in the .orc file.)
 ; f2 0 8192 10 1
