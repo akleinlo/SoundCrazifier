@@ -110,7 +110,7 @@ export default function GranulatorPlayer() {
                 By default, the granulated file will be saved in your Downloads folder.
                 You can configure your browser to ask for the save location before downloading:
                 <br />
-                <em>Safari/Chrome:</em> Settings → Downloads → "Ask for each download"
+                <em>Safari/Chrome:</em> Settings → Downloads → "Ask where to save each file before downloading"
             </div>
         </div>
     );

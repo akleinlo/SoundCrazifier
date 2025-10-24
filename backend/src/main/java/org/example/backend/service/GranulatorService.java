@@ -17,6 +17,10 @@ public class GranulatorService {
     private volatile boolean isRunning = false;
     private static final Logger logger = LoggerFactory.getLogger(GranulatorService.class);
 
+    protected Object createCsoundInstance() {
+        return new Csound();
+    }
+
     public synchronized String performGranulationOnce(Path orcPath, Path scoPath, boolean outputLive, Path outputPath) throws IOException {
         if (isRunning) {
             return "Granulation already running!";
@@ -33,10 +37,7 @@ public class GranulatorService {
     }
 
     protected void performGranulation(Path orcPath, Path scoPath, boolean outputLive, Path outputPath) throws IOException {
-        // Optional: isolated temporary directory for granulation
         Path tempDir = Files.createTempDirectory("granulator-");
-
-        // Determine secure output path
         Path effectiveOutput = outputPath != null
                 ? outputPath.toAbsolutePath()
                 : Files.createTempFile(tempDir, "granulated-", ".wav");
@@ -45,41 +46,53 @@ public class GranulatorService {
             Files.createDirectories(effectiveOutput.getParent());
         }
 
-        Csound csound = new Csound();
+        Object csound = createCsoundInstance(); // <-- Fake oder echt
 
         try {
             // Import files
             String orc = Files.readString(orcPath);
             String sco = Files.readString(scoPath);
 
-            // Output mode
-            if (outputLive) {
-                csound.SetOption("-odac");
-            } else {
-                csound.SetOption("-o" + effectiveOutput);
+            if (csound instanceof Csound real) {
+                if (outputLive) real.SetOption("-odac");
+                else real.SetOption("-o" + effectiveOutput);
+
+                logger.debug("--- ORC content ---");
+                logger.debug(orc);
+                logger.debug("--- SCO content ---");
+                logger.debug(sco);
+
+                // Prepare and run Csound
+                real.CompileOrc(orc);
+                real.ReadScore(sco);
+                real.Start();
+                while (real.PerformKsmps() == 0) {
+                }
+                logger.info("Granulation complete.");
+
+                real.Stop();
+                real.Reset();
+                real.Cleanup();
+
+            } else if (csound instanceof FakeCsound fake) {
+                // FakeCsound with Logging
+                fake.SetOption("-o" + effectiveOutput);
+                logger.debug("--- ORC content ---");
+                logger.debug(orc);
+                logger.debug("--- SCO content ---");
+                logger.debug(sco);
+                fake.CompileOrc(orc);
+                fake.ReadScore(sco);
+                fake.Start();
+                fake.PerformKsmps();
+                fake.Stop();
+                fake.Reset();
+                fake.Cleanup();
+                logger.info("Fake granulation complete.");
             }
 
-            logger.debug("--- ORC content ---");
-            logger.debug(orc);
-            logger.debug("--- SCO content ---");
-            logger.debug(sco);
-
-
-            // Prepare and run Csound
-            csound.CompileOrc(orc);
-            csound.ReadScore(sco);
-            csound.Start();
-
-            while (csound.PerformKsmps() == 0) {
-                // Runs until end
-            }
-
-            logger.info("Granulation complete.");
-
-        } finally {
-            csound.Stop();
-            csound.Reset();
-            csound.Cleanup();
+        } catch (Exception e) {
+            throw new IOException("Granulation failed", e);
         }
     }
 }
