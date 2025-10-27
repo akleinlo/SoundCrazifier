@@ -1,11 +1,15 @@
 import React, {useState} from "react";
 import axios from "axios";
+import styles from "../css/GranulatorPlayer.module.css";
+
 
 export default function GranulatorPlayer() {
     const [file, setFile] = useState<File | null>(null);
     const [filename, setFilename] = useState("");
     const [duration, setDuration] = useState(20); // default 20s
     const [newDuration, setNewDuration] = useState(duration);
+    const [isCrazifying, setIsCrazifying] = useState(false);
+
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const firstFile = e.target.files?.[0];
@@ -29,12 +33,15 @@ export default function GranulatorPlayer() {
         formData.append("audioFile", file);
         formData.append("duration", duration.toString());
 
+        setIsCrazifying(true);
         try {
             await axios.post("http://localhost:8080/granulator/play", formData, {
                 headers: {"Content-Type": "multipart/form-data"},
             });
         } catch (err) {
             console.error("Error playing file:", err);
+        } finally {
+            setIsCrazifying(false);
         }
     };
 
@@ -44,6 +51,7 @@ export default function GranulatorPlayer() {
         formData.append("audioFile", file);
         formData.append("duration", duration.toString());
 
+        setIsCrazifying(true);
         try {
             const response = await axios.post(
                 "http://localhost:8080/granulator/save",
@@ -62,8 +70,23 @@ export default function GranulatorPlayer() {
             link.click();
         } catch (err) {
             console.error("Error saving file:", err);
+        } finally {
+            setIsCrazifying(false);
         }
     };
+
+    const handleStop = async () => {
+        if (!file) return;
+
+        setIsCrazifying(false); // turn off spinner immediately
+        try {
+            await axios.post("http://localhost:8080/granulator/stop");
+            console.log("Granulation stopped.");
+        } catch (err) {
+            console.error("Error stopping granulation:", err);
+        }
+    };
+
 
     return (
         <div style={{
@@ -125,37 +148,60 @@ export default function GranulatorPlayer() {
                 </div>
             )}
 
-            {/* Play Button */}
-            <button
-                onClick={handlePlay}
-                style={{
-                    padding: "0.5rem 1rem",
-                    backgroundColor: "#000",
-                    color: "#fff",
-                    border: "none",
-                    borderRadius: "4px",
-                    cursor: "pointer",
-                    fontWeight: "bold"
-                }}
-            >
-                Play
-            </button>
+            {/* Play, Save, Stop + Spinner */}
+            <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                <button
+                    onClick={handlePlay}
+                    style={{
+                        padding: "0.5rem 1rem",
+                        backgroundColor: "#000",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: "4px",
+                        cursor: "pointer",
+                        fontWeight: "bold"
+                    }}
+                >
+                    Play
+                </button>
 
-            {/* Save Button */}
-            <button
-                onClick={handleSave}
-                style={{
-                    padding: "0.5rem 1rem",
-                    backgroundColor: "#000",
-                    color: "#fff",
-                    border: "none",
-                    borderRadius: "4px",
-                    cursor: "pointer",
-                    fontWeight: "bold"
-                }}
-            >
-                Save
-            </button>
+                <button
+                    onClick={handleSave}
+                    style={{
+                        padding: "0.5rem 1rem",
+                        backgroundColor: "#000",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: "4px",
+                        cursor: "pointer",
+                        fontWeight: "bold"
+                    }}
+                >
+                    Save
+                </button>
+
+                <button
+                    onClick={handleStop}
+                    style={{
+                        padding: "0.5rem 1rem",
+                        backgroundColor: "#900",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: "4px",
+                        cursor: "pointer",
+                        fontWeight: "bold"
+                    }}
+                >
+                    Stop
+                </button>
+
+                {isCrazifying && (
+                    <div className={styles.crazifyingContainer}>
+                        <div className={styles.crazifyingSpinner} />
+                        <span>Crazifying...</span>
+                    </div>
+                )}
+            </div>
 
             {/* Save as input */}
             {file && (
@@ -188,4 +234,5 @@ export default function GranulatorPlayer() {
             </div>
         </div>
     );
+
 }
