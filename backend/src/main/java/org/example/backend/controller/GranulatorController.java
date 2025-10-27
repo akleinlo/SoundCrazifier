@@ -110,4 +110,11 @@ public class GranulatorController {
         }
     }
 
+    @PostMapping("/stop")
+    public String stopAudio() {
+        granulatorService.stopGranulation();
+        return "Granulation stopped!";
+    }
+
+
 }

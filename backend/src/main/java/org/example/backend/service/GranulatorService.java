@@ -15,6 +15,7 @@ import java.nio.file.Path;
 public class GranulatorService {
 
     private volatile boolean isRunning = false;
+    private volatile Csound currentCsound = null;
     private static final Logger logger = LoggerFactory.getLogger(GranulatorService.class);
 
     protected Object createCsoundInstance() {
@@ -27,14 +28,42 @@ public class GranulatorService {
         }
 
         isRunning = true;
-        try {
-            performGranulation(orcPath, scoPath, outputLive, outputPath);
-        } finally {
-            isRunning = false;
-        }
 
-        return "Granulation finished!";
+        if (outputLive) {
+            // Live-Playback in eigenem Thread
+            new Thread(() -> {
+                Object csound = createCsoundInstance();
+                currentCsound = (csound instanceof Csound c) ? c : null;
+                try {
+                    performGranulation(orcPath, scoPath, true, outputPath);
+                } catch (IOException e) {
+                    logger.error("Error during live granulation", e);
+                } finally {
+                    if (currentCsound != null) {
+                        try {
+                            currentCsound.Stop();
+                            currentCsound.Reset();
+                            currentCsound.Cleanup();
+                        } catch (Exception e) {
+                            logger.error("Failed to cleanup Csound instance", e);
+                        }
+                    }
+                    currentCsound = null;
+                    isRunning = false;
+                    logger.info("Live granulation thread ended");
+                }
+            }).start();
+            return "Granulation started!";
+        } else {
+            try {
+                performGranulation(orcPath, scoPath, false, outputPath);
+            } finally {
+                isRunning = false;
+            }
+            return "Granulation finished!";
+        }
     }
+
 
     protected void performGranulation(Path orcPath, Path scoPath, boolean outputLive, Path outputPath) throws IOException {
         Path tempDir = Files.createTempDirectory("granulator-");
@@ -46,57 +75,73 @@ public class GranulatorService {
             Files.createDirectories(effectiveOutput.getParent());
         }
 
-        Object csound = createCsoundInstance(); // <-- Fake oder echt
+        Object csound = createCsoundInstance(); // Fake or real
 
         try {
-            // Import files
             String orc = Files.readString(orcPath);
             String sco = Files.readString(scoPath);
 
             if (csound instanceof Csound real) {
+                currentCsound = real;
                 if (outputLive) real.SetOption("-odac");
                 else {
                     real.SetOption("-o" + effectiveOutput);
-                    real.SetOption("--format=float");      // 32-bit float
-                    real.SetOption("-r96000");   // 96kHz
-
+                    real.SetOption("--format=float");
+                    real.SetOption("-r96000");
                 }
 
-                logger.debug("--- ORC content ---");
-                logger.debug(orc);
-                logger.debug("--- SCO content ---");
-                logger.debug(sco);
+                logger.debug("--- ORC content ---\n" + orc);
+                logger.debug("--- SCO content ---\n" + sco);
 
-                // Prepare and run Csound
                 real.CompileOrc(orc);
                 real.ReadScore(sco);
                 real.Start();
-                while (real.PerformKsmps() == 0) {}
+
+                while (real.PerformKsmps() == 0 && isRunning) {
+                }
+
                 logger.info("Granulation complete.");
 
-                real.Stop();
-                real.Reset();
-                real.Cleanup();
-
             } else if (csound instanceof FakeCsound fake) {
-                // FakeCsound with Logging
+                currentCsound = null; // FakeCsound, keine echte Stop-Funktion
                 fake.SetOption("-o" + effectiveOutput);
-                logger.debug("--- ORC content ---");
-                logger.debug(orc);
-                logger.debug("--- SCO content ---");
-                logger.debug(sco);
+                logger.debug("--- ORC content ---\n" + orc);
+                logger.debug("--- SCO content ---\n" + sco);
                 fake.CompileOrc(orc);
                 fake.ReadScore(sco);
                 fake.Start();
                 fake.PerformKsmps();
-                fake.Stop();
-                fake.Reset();
-                fake.Cleanup();
                 logger.info("Fake granulation complete.");
             }
 
         } catch (Exception e) {
             throw new IOException("Granulation failed", e);
+        } finally {
+            if (csound instanceof Csound real) {
+                try {
+                    real.Stop();
+                    real.Reset();
+                    real.Cleanup();
+                } catch (Exception e) {
+                    logger.error("Failed to cleanup Csound instance", e);
+                }
+                currentCsound = null;
+            }
+            isRunning = false;
         }
     }
+
+    public synchronized void stopGranulation() {
+        if (currentCsound != null && isRunning) {
+            logger.info("Signaling current granulation to stop...");
+            isRunning = false;  // Live-Thread beendet sich dann selbst und macht Cleanup
+        } else {
+            logger.info("No granulation is currently running.");
+        }
+    }
+
+
 }
+
+
+
