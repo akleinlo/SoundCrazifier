@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import javax.sound.sampled.*;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -17,53 +18,51 @@ public class GranulatorService {
     private volatile boolean isRunning = false;
     private volatile Csound currentCsound = null;
     private static final Logger logger = LoggerFactory.getLogger(GranulatorService.class);
+    private long lastStopTime = 0;
 
     protected Object createCsoundInstance() {
         return new Csound();
     }
 
     public synchronized String performGranulationOnce(Path orcPath, Path scoPath, boolean outputLive, Path outputPath) throws IOException {
-        if (isRunning) {
-            return "Granulation already running!";
+        long now = System.currentTimeMillis();
+        if (now - lastStopTime < 1000) {
+            logger.warn("Cooldown active – rejecting rapid restart.");
+            return "Please wait a second before starting again.";
         }
+
+        if (currentCsound != null && isRunning) {
+            logger.warn("Old Csound instance still running — forcing cleanup");
+            cleanupCsound();
+            try { Thread.sleep(500); } catch (InterruptedException ignored) {}
+        }
+
+        if (isRunning) return "Crazification already running!";
 
         isRunning = true;
 
         if (outputLive) {
-            // Live-Playback in eigenem Thread
             new Thread(() -> {
                 Object csound = createCsoundInstance();
                 currentCsound = (csound instanceof Csound c) ? c : null;
                 try {
                     performGranulation(orcPath, scoPath, true, outputPath);
                 } catch (IOException e) {
-                    logger.error("Error during live granulation", e);
+                    logger.error("Error during live Crazification", e);
                 } finally {
-                    if (currentCsound != null) {
-                        try {
-                            currentCsound.Stop();
-                            currentCsound.Reset();
-                            currentCsound.Cleanup();
-                        } catch (Exception e) {
-                            logger.error("Failed to cleanup Csound instance", e);
-                        }
-                    }
-                    currentCsound = null;
-                    isRunning = false;
-                    logger.info("Live granulation thread ended");
+                    cleanupCsound();
                 }
             }).start();
-            return "Granulation started!";
+            return "Crazification started!";
         } else {
             try {
                 performGranulation(orcPath, scoPath, false, outputPath);
             } finally {
                 isRunning = false;
             }
-            return "Granulation finished!";
+            return "Crazification finished!";
         }
     }
-
 
     protected void performGranulation(Path orcPath, Path scoPath, boolean outputLive, Path outputPath) throws IOException {
         Path tempDir = Files.createTempDirectory("granulator-");
@@ -71,11 +70,10 @@ public class GranulatorService {
                 ? outputPath.toAbsolutePath()
                 : Files.createTempFile(tempDir, "granulated-", ".wav");
 
-        if (effectiveOutput.getParent() != null) {
-            Files.createDirectories(effectiveOutput.getParent());
-        }
+        if (effectiveOutput.getParent() != null) Files.createDirectories(effectiveOutput.getParent());
+        ensureValidWav(effectiveOutput);
 
-        Object csound = createCsoundInstance(); // Fake or real
+        Object csound = createCsoundInstance();
 
         try {
             String orc = Files.readString(orcPath);
@@ -83,11 +81,15 @@ public class GranulatorService {
 
             if (csound instanceof Csound real) {
                 currentCsound = real;
-                if (outputLive) real.SetOption("-odac");
-                else {
+
+                if (outputLive) {
+                    real.SetOption("-odac");
+                } else {
                     real.SetOption("-o" + effectiveOutput);
                     real.SetOption("--format=float");
                     real.SetOption("-r96000");
+                    real.SetOption("-b512");
+                    real.SetOption("-B2048");
                 }
 
                 logger.debug("--- ORC content ---\n" + orc);
@@ -97,13 +99,12 @@ public class GranulatorService {
                 real.ReadScore(sco);
                 real.Start();
 
-                while (real.PerformKsmps() == 0 && isRunning) {
-                }
+                while (real.PerformKsmps() == 0 && isRunning) {}
 
-                logger.info("Granulation complete.");
+                logger.info("Crazification complete.");
 
             } else if (csound instanceof FakeCsound fake) {
-                currentCsound = null; // FakeCsound, keine echte Stop-Funktion
+                currentCsound = null;
                 fake.SetOption("-o" + effectiveOutput);
                 logger.debug("--- ORC content ---\n" + orc);
                 logger.debug("--- SCO content ---\n" + sco);
@@ -111,37 +112,57 @@ public class GranulatorService {
                 fake.ReadScore(sco);
                 fake.Start();
                 fake.PerformKsmps();
-                logger.info("Fake granulation complete.");
+                logger.info("Fake crazification complete.");
             }
 
         } catch (Exception e) {
-            throw new IOException("Granulation failed", e);
+            throw new IOException("Crazification failed", e);
         } finally {
-            if (csound instanceof Csound real) {
-                try {
-                    real.Stop();
-                    real.Reset();
-                    real.Cleanup();
-                } catch (Exception e) {
-                    logger.error("Failed to cleanup Csound instance", e);
-                }
-                currentCsound = null;
+            if (csound instanceof Csound) cleanupCsound();
+        }
+    }
+
+    private void ensureValidWav(Path path) throws IOException {
+        if (!Files.exists(path) || Files.size(path) == 0) {
+            // 1 Sekunde Stille, 44100 Hz, 16-bit PCM, Mono
+            byte[] silence = new byte[44100 * 2]; // 44100 Samples * 2 Bytes pro Sample
+            AudioFormat format = new AudioFormat(44100, 16, 1, true, false); // PCM signed, little-endian
+            try (AudioInputStream ais = new AudioInputStream(
+                    new java.io.ByteArrayInputStream(silence),
+                    format,
+                    44100)) {
+                AudioSystem.write(ais, AudioFileFormat.Type.WAVE, path.toFile());
+            } catch (Exception e) {
+                logger.warn("Failed to create placeholder WAV", e);
             }
-            isRunning = false;
+        }
+    }
+
+
+
+    private synchronized void cleanupCsound() {
+        if (currentCsound != null) {
+            try {
+                currentCsound.Stop();
+                currentCsound.Reset();
+                currentCsound.Cleanup();
+            } catch (Exception e) {
+                logger.error("Failed to cleanup Csound instance", e);
+            } finally {
+                currentCsound = null;
+                isRunning = false;
+                logger.info("Csound instance cleaned up");
+            }
         }
     }
 
     public synchronized void stopGranulation() {
         if (currentCsound != null && isRunning) {
-            logger.info("Signaling current granulation to stop...");
-            isRunning = false;  // Live-Thread beendet sich dann selbst und macht Cleanup
+            logger.info("Signaling current crazification to stop...");
+            isRunning = false;
+            lastStopTime = System.currentTimeMillis();
         } else {
-            logger.info("No granulation is currently running.");
+            logger.info("No crazification is currently running.");
         }
     }
-
-
 }
-
-
-

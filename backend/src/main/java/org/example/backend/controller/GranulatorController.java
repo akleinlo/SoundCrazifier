@@ -33,12 +33,15 @@ public class GranulatorController {
     public String playAudio(
             @RequestParam("audioFile") MultipartFile audioFile,
             @RequestParam("duration") double duration) throws IOException {
+
+
         if (granulatorService.isRunning()) {
-            logger.info("Granulation already running, rejecting new play request");
-            return "Granulation already running!";
+            logger.info("Crazification already running, rejecting new play request");
+            return "Crazification already running!";
         }
+
         handleGranulationSync(audioFile, duration, true);
-        return "Granulation started!";
+        return "Crazification started!";
     }
 
 
@@ -100,7 +103,7 @@ public class GranulatorController {
                 try {
                     granulatorService.performGranulationOnce(orcPath, tempSco, true, null);
                 } catch (IOException e) {
-                    logger.error("Granulation playback failed for {}", audioFile.getOriginalFilename(), e);
+                    logger.error("Crazification playback failed for {}", audioFile.getOriginalFilename(), e);
                 }
             }).start();
             return null;
@@ -113,8 +116,11 @@ public class GranulatorController {
     @PostMapping("/stop")
     public String stopAudio() {
         granulatorService.stopGranulation();
-        return "Granulation stopped!";
+        return "Crazification stopped!";
     }
+
+
+
 
 
 }

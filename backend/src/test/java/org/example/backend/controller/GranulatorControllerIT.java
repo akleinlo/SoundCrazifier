@@ -26,7 +26,7 @@ class GranulatorControllerIT {
     private MockMvc mockMvc;
 
     @MockBean
-    private GranulatorService granulatorService; //
+    private GranulatorService granulatorService;
 
     @BeforeEach
     void setup() throws IOException {
@@ -49,7 +49,8 @@ class GranulatorControllerIT {
         );
 
         mockMvc.perform(multipart("/granulator/play")
-                        .file(file))
+                        .file(file)
+                        .param("duration", "5.0")) // hier Dauer mitgeben
                 .andExpect(status().isOk());
     }
 
@@ -64,7 +65,8 @@ class GranulatorControllerIT {
         );
 
         mockMvc.perform(multipart("/granulator/save")
-                        .file(file))
+                        .file(file)
+                        .param("duration", "5.0")) // hier Dauer mitgeben
                 .andExpect(status().isOk());
     }
 }
