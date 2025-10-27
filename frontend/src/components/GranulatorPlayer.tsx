@@ -81,7 +81,7 @@ export default function GranulatorPlayer() {
         setIsCrazifying(false); // turn off spinner immediately
         try {
             await axios.post("http://localhost:8080/granulator/stop");
-            console.log("Granulation stopped.");
+            console.log("Crazification stopped.");
         } catch (err) {
             console.error("Error stopping granulation:", err);
         }

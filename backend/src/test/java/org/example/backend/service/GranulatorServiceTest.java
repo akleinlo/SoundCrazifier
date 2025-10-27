@@ -18,10 +18,22 @@ class GranulatorServiceTest {
     private GranulatorService granulatorService;
 
     @BeforeEach
-    void setup() {
+    void setup() throws IOException {
         granulatorService = Mockito.spy(new GranulatorService());
-    }
 
+        // Mock für performGranulation, um IOException zu vermeiden und Outputfile zu simulieren
+        Mockito.doAnswer(invocation -> {
+            Path output = invocation.getArgument(3, Path.class);
+            if (output != null) {
+                try {
+                    Files.createFile(output); // simuliert erfolgreiche Granulation
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            return null;
+        }).when(granulatorService).performGranulation(Mockito.any(), Mockito.any(), Mockito.anyBoolean(), Mockito.any());
+    }
 
     @Test
     @DisplayName("isRunning initially false")
@@ -32,7 +44,6 @@ class GranulatorServiceTest {
     @Test
     @DisplayName("performGranulationOnce returns 'already running' when flag true (via reflection)")
     void performGranulationOnce_rejectsWhenAlreadyRunning() throws Exception {
-        // GIVEN
         Field isRunningField = GranulatorService.class.getDeclaredField("isRunning");
         isRunningField.setAccessible(true);
         isRunningField.setBoolean(granulatorService, true);
@@ -40,16 +51,13 @@ class GranulatorServiceTest {
         Path dummyOrc = Paths.get("does-not-matter.orc");
         Path dummySco = Paths.get("does-not-matter.sco");
 
-        // WHEN
         String result = granulatorService.performGranulationOnce(dummyOrc, dummySco, false, null);
 
-        // THEN
-        assertEquals("Granulation already running!", result);
+        assertEquals("Crazification already running!", result);
 
         // Cleanup
         isRunningField.setBoolean(granulatorService, false);
     }
-
 
     @Test
     @DisplayName("performGranulationOnce resets isRunning after IOException")
@@ -71,9 +79,8 @@ class GranulatorServiceTest {
     }
 
     @Test
-    @DisplayName("performGranulationOnce returns 'Granulation finished!' when successful")
+    @DisplayName("performGranulationOnce returns 'Crazification finished!' when successful")
     void performGranulationOnce_success() throws Exception {
-        // mock performGranulation to do nothing
         Mockito.doNothing()
                 .when(granulatorService)
                 .performGranulation(Mockito.any(), Mockito.any(), Mockito.anyBoolean(), Mockito.any());
@@ -82,7 +89,8 @@ class GranulatorServiceTest {
         Path dummySco = Paths.get("does-not-matter.sco");
 
         String result = granulatorService.performGranulationOnce(dummyOrc, dummySco, false, null);
-        assertEquals("Granulation finished!", result);
+
+        assertEquals("Crazification finished!", result);
         assertFalse(granulatorService.isRunning());
     }
 
@@ -91,7 +99,9 @@ class GranulatorServiceTest {
     void performGranulation_createsOutputFile() throws Exception {
         Mockito.doAnswer(invocation -> {
             Path output = invocation.getArgument(3, Path.class);
-            Files.createFile(output); // simuliert erfolgreiche Granulation
+            if (output != null) {
+                Files.createFile(output); // simuliert erfolgreiche Granulation
+            }
             return null;
         }).when(granulatorService).performGranulation(Mockito.any(), Mockito.any(), Mockito.anyBoolean(), Mockito.any());
 
@@ -111,6 +121,5 @@ class GranulatorServiceTest {
         Files.deleteIfExists(sco);
         Files.deleteIfExists(output);
     }
-
 
 }

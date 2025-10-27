@@ -10,9 +10,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import javax.sound.sampled.AudioFormat;
-import javax.sound.sampled.AudioInputStream;
-import javax.sound.sampled.AudioSystem;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -37,38 +34,15 @@ public class GranulatorController {
             @RequestParam("audioFile") MultipartFile audioFile,
             @RequestParam("duration") double duration) throws IOException {
 
-        // 1. Temporäre Datei speichern, nur um die Dauer zu prüfen
-        Path tempDir = Path.of(System.getProperty("java.io.tmpdir"));
-        Path tempAudio = Files.createTempFile(tempDir, "audio-", ".wav");
-        Files.write(tempAudio, audioFile.getBytes());
 
-        // 2. Dauer prüfen
-        double audioDurationSec = getAudioDuration(tempAudio);
-        if (audioDurationSec > 60.0) {
-            Files.deleteIfExists(tempAudio);
-            return "Audio too long! Maximum allowed duration is 60 seconds.";
+        if (granulatorService.isRunning()) {
+            logger.info("Crazification already running, rejecting new play request");
+            return "Crazification already running!";
         }
 
-        // 3. Nur wenn OK -> Granulation starten
         handleGranulationSync(audioFile, duration, true);
-
-        // 4. Temp-Audio kann ggf. gelöscht werden, wenn handleGranulationSync eigene Temp-Dateien erstellt
-        Files.deleteIfExists(tempAudio);
-
-        return "Granulation started!";
+        return "Crazification started!";
     }
-
-
-    public double getAudioDuration(Path audioPath) throws IOException {
-        try (AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(audioPath.toFile())) {
-            AudioFormat format = audioInputStream.getFormat();
-            long frames = audioInputStream.getFrameLength();
-            return frames / format.getFrameRate();  // Dauer in Sekunden
-        } catch (Exception e) {
-            throw new IOException("Failed to determine audio duration", e);
-        }
-    }
-
 
 
     /**
@@ -129,7 +103,7 @@ public class GranulatorController {
                 try {
                     granulatorService.performGranulationOnce(orcPath, tempSco, true, null);
                 } catch (IOException e) {
-                    logger.error("Granulation playback failed for {}", audioFile.getOriginalFilename(), e);
+                    logger.error("Crazification playback failed for {}", audioFile.getOriginalFilename(), e);
                 }
             }).start();
             return null;
@@ -142,8 +116,10 @@ public class GranulatorController {
     @PostMapping("/stop")
     public String stopAudio() {
         granulatorService.stopGranulation();
-        return "Granulation stopped!";
+        return "Crazification stopped!";
     }
+
+
 
 
 
