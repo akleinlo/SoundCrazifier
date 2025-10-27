@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, {useState} from "react";
 import axios from "axios";
 
 export default function GranulatorPlayer() {
@@ -12,6 +12,14 @@ export default function GranulatorPlayer() {
         if (firstFile) {
             setFile(firstFile);
             setFilename(firstFile.name.replace(".wav", "-crazified.wav"));
+
+            // Dauer des Files ermitteln
+            const audio = new Audio(URL.createObjectURL(firstFile));
+            audio.addEventListener("loadedmetadata", () => {
+                const fileDuration = parseFloat(audio.duration.toFixed(3));
+                setDuration(fileDuration);
+                setNewDuration(fileDuration);
+            });
         }
     };
 
@@ -23,7 +31,7 @@ export default function GranulatorPlayer() {
 
         try {
             await axios.post("http://localhost:8080/granulator/play", formData, {
-                headers: { "Content-Type": "multipart/form-data" },
+                headers: {"Content-Type": "multipart/form-data"},
             });
         } catch (err) {
             console.error("Error playing file:", err);
@@ -41,9 +49,9 @@ export default function GranulatorPlayer() {
                 "http://localhost:8080/granulator/save",
                 formData,
                 {
-                    headers: { "Content-Type": "multipart/form-data" },
+                    headers: {"Content-Type": "multipart/form-data"},
                     responseType: "blob",
-                    params: { outputPath: filename },
+                    params: {outputPath: filename},
                 }
             );
 
@@ -58,10 +66,24 @@ export default function GranulatorPlayer() {
     };
 
     return (
-        <div style={{ padding: "2rem", fontFamily: "sans-serif", display: "flex", flexDirection: "column", alignItems: "center", gap: "1.5rem" }}>
+        <div style={{
+            padding: "2rem",
+            fontFamily: "sans-serif",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: "1.5rem"
+        }}>
             {/* Choose File */}
             <div>
-                <label htmlFor="fileInput" style={{ cursor: "pointer", padding: "0.5rem 1rem", backgroundColor: "#000", color: "#fff", borderRadius: "4px", fontWeight: "bold" }}>
+                <label htmlFor="fileInput" style={{
+                    cursor: "pointer",
+                    padding: "0.5rem 1rem",
+                    backgroundColor: "#000",
+                    color: "#fff",
+                    borderRadius: "4px",
+                    fontWeight: "bold"
+                }}>
                     Choose File
                 </label>
                 <input
@@ -69,14 +91,14 @@ export default function GranulatorPlayer() {
                     type="file"
                     accept="audio/*"
                     onChange={handleFileChange}
-                    style={{ display: "none" }}
+                    style={{display: "none"}}
                 />
-                {file && <span style={{ marginLeft: "1rem" }}>{file.name}</span>}
+                {file && <span style={{marginLeft: "1rem"}}>{file.name}</span>}
             </div>
 
             {/* Duration + Update Button */}
             {file && (
-                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <div style={{display: "flex", alignItems: "center", gap: "0.5rem"}}>
                     <label>
                         Duration (seconds):
                         <input
@@ -85,12 +107,18 @@ export default function GranulatorPlayer() {
                             step={0.01}
                             value={newDuration}
                             onChange={(e) => setNewDuration(parseFloat(e.target.value.replace(",", ".")))}
-                            style={{ marginLeft: "0.5rem", padding: "0.25rem", width: "80px" }}
+                            style={{marginLeft: "0.5rem", padding: "0.25rem", width: "80px"}}
                         />
                     </label>
                     <button
                         onClick={() => setDuration(newDuration)}
-                        style={{ padding: "0.25rem 0.5rem", backgroundColor: "#333", color: "#fff", borderRadius: "4px", cursor: "pointer" }}
+                        style={{
+                            padding: "0.25rem 0.5rem",
+                            backgroundColor: "#333",
+                            color: "#fff",
+                            borderRadius: "4px",
+                            cursor: "pointer"
+                        }}
                     >
                         Update
                     </button>
@@ -100,7 +128,15 @@ export default function GranulatorPlayer() {
             {/* Play Button */}
             <button
                 onClick={handlePlay}
-                style={{ padding: "0.5rem 1rem", backgroundColor: "#000", color: "#fff", border: "none", borderRadius: "4px", cursor: "pointer", fontWeight: "bold" }}
+                style={{
+                    padding: "0.5rem 1rem",
+                    backgroundColor: "#000",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: "4px",
+                    cursor: "pointer",
+                    fontWeight: "bold"
+                }}
             >
                 Play
             </button>
@@ -108,7 +144,15 @@ export default function GranulatorPlayer() {
             {/* Save Button */}
             <button
                 onClick={handleSave}
-                style={{ padding: "0.5rem 1rem", backgroundColor: "#000", color: "#fff", border: "none", borderRadius: "4px", cursor: "pointer", fontWeight: "bold" }}
+                style={{
+                    padding: "0.5rem 1rem",
+                    backgroundColor: "#000",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: "4px",
+                    cursor: "pointer",
+                    fontWeight: "bold"
+                }}
             >
                 Save
             </button>
@@ -122,7 +166,7 @@ export default function GranulatorPlayer() {
                             type="text"
                             value={filename}
                             onChange={(e) => setFilename(e.target.value)}
-                            style={{ padding: "0.25rem", width: "250px" }}
+                            style={{padding: "0.25rem", width: "250px"}}
                         />
                     </label>
                 </div>
@@ -137,9 +181,9 @@ export default function GranulatorPlayer() {
                 maxWidth: "400px",
                 marginTop: "1rem"
             }}>
-                <strong>Save as…</strong><br />
-                By default, the crazified file will be saved in your Downloads folder.<br />
-                You can configure your browser to ask for the save location before downloading:<br />
+                <strong>Save as…</strong><br/>
+                By default, the crazified file will be saved in your Downloads folder.<br/>
+                You can configure your browser to ask for the save location before downloading:<br/>
                 <em>Safari/Chrome:</em> Settings → Downloads → "Ask where to save each file before downloading"
             </div>
         </div>
