@@ -20,4 +20,6 @@ i1  0.0       20.0 \
               0.2     2.0   6.0 \        ; kampoffMin(0 fix), kampoffMax, kampoffCpsMin, kampoffCpsMax
     -0.2      0.2     2.0   6.0 \        ; kpitchoffMin, kpitchoffMax, kpitchoffCpsMin, kpitchoffCpsMax
     0.0075    0.5     2.0   6.0          ; kgdurMin, kgdurMax, kgdurCpsMin, kgdurCpsMax
+    0.000 	  720.0	  0.5	 1.5		 ; iazLo, iazHi, iazMinCps, iazMaxCps
+    -90.00 	  90.0	  0.5	 1.5		 ; ielLo, ielHi, ielMinCps, ielMaxCps
 e

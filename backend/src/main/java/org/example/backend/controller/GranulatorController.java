@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.sound.sampled.*;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -26,14 +27,10 @@ public class GranulatorController {
         this.granulatorService = granulatorService;
     }
 
-    /**
-     * Plays the granulated audio live
-     */
     @PostMapping("/play")
     public String playAudio(
             @RequestParam("audioFile") MultipartFile audioFile,
             @RequestParam("duration") double duration) throws IOException {
-
 
         if (granulatorService.isRunning()) {
             logger.info("Crazification already running, rejecting new play request");
@@ -44,10 +41,6 @@ public class GranulatorController {
         return "Crazification started!";
     }
 
-
-    /**
-     * Saves the granulated audio to a user-specified path
-     */
     @PostMapping("/save")
     public ResponseEntity<Resource> saveAudio(
             @RequestParam("audioFile") MultipartFile audioFile,
@@ -68,27 +61,30 @@ public class GranulatorController {
                 .body(resource);
     }
 
-    /**
-     * Internal helper to avoid code duplication
-     */
     private Path handleGranulationSync(MultipartFile audioFile, double duration, boolean live) throws IOException {
         String tempDir = System.getProperty("java.io.tmpdir");
         Path tempAudio = Files.createTempFile(Path.of(tempDir), "audio-", ".wav");
         Path tempSco = Files.createTempFile(Path.of(tempDir), "granular-", ".sco");
 
-        // Audio speichern
+        // save Audio
         Files.write(tempAudio, audioFile.getBytes());
 
-        // Score laden
+        // When saving: resample to 96 kHz
+        if (!live) {
+            logger.info("Resampling audio for high-quality output...");
+            tempAudio = resampleWithSox(tempAudio, 96000);
+        }
+
+        // load Score
         String scoContent = Files.readString(new ClassPathResource("csound/granular.sco").getFile().toPath(), StandardCharsets.UTF_8);
 
-        // REPLACE_ME durch Pfad ersetzen
+        // Replace REPLACE_ME with path
         scoContent = scoContent.replace("\"REPLACE_ME\"", "\"" + tempAudio.toAbsolutePath() + "\"");
 
-        // p3 ersetzen (nur das erste Vorkommen der 20.0 nach i1)
+        // replace p3
         scoContent = scoContent.replaceFirst("(i1\\s+0\\.0\\s+)(\\d+\\.?\\d*)", "$1" + duration);
 
-        // Neues .sco schreiben
+        // write new .sco
         Files.writeString(tempSco, scoContent, StandardCharsets.UTF_8);
 
         Path orcPath = new ClassPathResource("csound/granular.orc").getFile().toPath();
@@ -113,14 +109,69 @@ public class GranulatorController {
         }
     }
 
+    /**
+     * Resamples audio file using SoX to target sample rate
+     */
+    private Path resampleWithSox(Path inputPath, int targetSampleRate) throws IOException {
+        // Check input file sample rate
+        try (AudioInputStream ais = AudioSystem.getAudioInputStream(inputPath.toFile())) {
+            float currentSampleRate = ais.getFormat().getSampleRate();
+            logger.info("Input audio sample rate: {} Hz", currentSampleRate);
+
+            // If already at target rate, no resampling needed
+            if (Math.abs(currentSampleRate - targetSampleRate) < 1) {
+                logger.info("Sample rate already matches target, skipping resample");
+                return inputPath;
+            }
+        } catch (UnsupportedAudioFileException e) {
+            logger.warn("Could not detect sample rate, proceeding with resample anyway", e);
+        }
+
+        Path resampledPath = Files.createTempFile(inputPath.getParent(), "resampled-", ".wav");
+
+        logger.info("Resampling {} to {} Hz using SoX...", inputPath.getFileName(), targetSampleRate);
+
+        ProcessBuilder pb = new ProcessBuilder(
+                "sox",
+                inputPath.toString(),
+                "-r", String.valueOf(targetSampleRate),
+                resampledPath.toString()
+        );
+
+        pb.redirectErrorStream(true);
+
+        try {
+            Process process = pb.start();
+
+            // Read output for debugging
+            String output = new String(process.getInputStream().readAllBytes());
+            if (!output.isEmpty()) {
+                logger.debug("SoX output: {}", output);
+            }
+
+            int exitCode = process.waitFor();
+
+            if (exitCode != 0) {
+                logger.error("SoX failed with exit code: {}", exitCode);
+                throw new IOException("SoX resampling failed with exit code: " + exitCode);
+            }
+
+            logger.info("Successfully resampled to {} Hz", targetSampleRate);
+
+            // Delete original temp file to save space
+            Files.deleteIfExists(inputPath);
+
+            return resampledPath;
+
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("SoX process interrupted", e);
+        }
+    }
+
     @PostMapping("/stop")
     public String stopAudio() {
         granulatorService.stopGranulation();
         return "Crazification stopped!";
     }
-
-
-
-
-
 }

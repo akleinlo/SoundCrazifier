@@ -5,6 +5,9 @@ nchnls  = 2
 
 seed 0
 
+gS_HRTF_left  = "hrtf-44100-left.dat"
+gS_HRTF_right = "hrtf-44100-right.dat"
+
 ;---------------------------------------------------------
 ; Granular Instrument – controlled by p-fields
 ;---------------------------------------------------------
@@ -81,6 +84,37 @@ iwfn            =       giSine
 imgdur          =       0.5                 ; max grain duration (seconds)
 
 aout            grain   kamp, kpitch, kdens, kampoff, kpitchoff, kgdur, igfn, iwfn, imgdur
-outs            aout, aout
 
+;--------------------------------------
+; Binaural 3d processing
+;--------------------------------------
+; azimuth (direction in the horizontal plane)
+iazLo 			= 		p27
+iazHi 			= 		p28
+iazMinCps 		= 		p29
+iazMaxCps 		= 		p30
+kAz 		 rspline 	iazLo, iazHi, iazMinCps, iazMaxCps
+kAzSmoothed   portk 	kAz, 0.01
+
+; elevation (direction in the vertical plane)
+ielLo 			= 		p31
+ielHi 			= 		p32
+ielMinCps 		= 		p33
+ielMaxCps 		= 		p34
+kel 		 rspline 	ielLo, ielHi, ielMinCps, ielMaxCps
+kelevSmoothed portk 	kel, 0.01
+
+
+aLeft,aRight hrtfmove2  aout, kAzSmoothed,kelevSmoothed, gS_HRTF_left,gS_HRTF_right
+
+aLeftOut 	linenr 	    aLeft, 0.001, 0, 0.01
+aRightOut 	linenr 	    aRight, 0.001, 0, 0.01
+aLeft 		balance 	aLeftOut, aLeft
+aRight 		balance 	aRightOut, aRight
+
+prints "Using HRTF left: %s\n", gS_HRTF_left
+prints "Using HRTF right: %s\n", gS_HRTF_right
+
+
+outs      	aLeft, aRight
 endin

@@ -1,6 +1,5 @@
 package org.example.backend.service;
 
-import csnd6.Csound;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
