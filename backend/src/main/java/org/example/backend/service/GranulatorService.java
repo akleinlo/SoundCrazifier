@@ -10,6 +10,8 @@ import javax.sound.sampled.*;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Comparator;
+import java.util.Objects;
 
 @Getter
 @Service
@@ -126,6 +128,7 @@ public class GranulatorService {
                 csound.SetOption("-odac");
                 logger.info("Configuring Csound for live output (DAC)");
             } else {
+                Objects.requireNonNull(effectiveOutput, "Effective output path must not be null");
                 csound.SetOption("-o" + effectiveOutput.toAbsolutePath());
                 csound.SetOption("--format=float");
                 csound.SetOption("-r96000");
@@ -218,9 +221,8 @@ public class GranulatorService {
 
     private void cleanupTempDirectory(Path tempDir) {
         if (tempDir != null) {
-            try {
-                Files.walk(tempDir)
-                        .sorted((a, b) -> b.compareTo(a)) // delete files before directories
+            try (var stream = Files.walk(tempDir)) {
+                stream.sorted(Comparator.reverseOrder())
                         .forEach(path -> {
                             try {
                                 Files.deleteIfExists(path);
@@ -233,6 +235,7 @@ public class GranulatorService {
             }
         }
     }
+
 
     private void ensureValidWav(Path path) throws IOException {
         if (!Files.exists(path) || Files.size(path) == 0) {
