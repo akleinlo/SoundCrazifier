@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Comparator;
 
 @Getter
 @Service
@@ -290,7 +291,7 @@ public class GranulatorService {
         if (tempDir != null) {
             try {
                 Files.walk(tempDir)
-                        .sorted((a, b) -> b.compareTo(a)) // delete files before directories
+                        .sorted(Comparator.reverseOrder()) // delete files before directories
                         .forEach(path -> {
                             try {
                                 Files.deleteIfExists(path);
