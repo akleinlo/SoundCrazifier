@@ -4,14 +4,14 @@ import csnd6.Csound;
 import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
 import javax.sound.sampled.*;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Comparator;
-import java.util.Objects;
 
 @Getter
 @Service
@@ -28,18 +28,18 @@ public class GranulatorService {
         return new Csound();
     }
 
-    public synchronized void performGranulationOnce(Path orcPath, Path scoPath, boolean outputLive, Path outputPath) throws IOException {
+    public synchronized String performGranulationOnce(Path orcPath, Path scoPath, boolean outputLive, Path outputPath) throws IOException {
         // 1. Cooldown check
         long now = System.currentTimeMillis();
         if (now - lastStopTime < COOLDOWN_MS) {
             logger.warn("Cooldown active – rejecting rapid restart.");
-            logger.info("Please wait a second before starting again.");
+            return "Please wait a second before starting again.";
         }
 
         // 2. Check if already running
         if (isRunning) {
             logger.warn("Crazification already running, rejecting new request");
-            logger.info("Crazification already running!");
+            return "Crazification already running!";
         }
 
         // 3. Force cleanup if stuck instance exists
@@ -73,13 +73,12 @@ public class GranulatorService {
                     }
                 }, "Csound-LiveThread").start();
 
-                logger.info("Crazification started!");
-
+                return "Crazification started!";
             } else {
                 // Synchronous file rendering
                 try {
                     performGranulation(csound, orcPath, scoPath, false, outputPath);
-                    logger.info("Crazification finished!");
+                    return "Crazification finished!";
                 } finally {
                     cleanupCsound();
                 }
@@ -89,7 +88,7 @@ public class GranulatorService {
             isRunning = true;
             try {
                 performGranulationFake(fake, orcPath, scoPath, outputPath);
-                logger.info("Fake crazification finished!");
+                return "Fake crazification finished!";
             } finally {
                 isRunning = false;
             }
@@ -107,6 +106,9 @@ public class GranulatorService {
         Path effectiveOutput = outputPath;
 
         try {
+            // Determine sample rate based on output mode
+            int sampleRate = outputLive ? 44100 : 96000;
+
             // Prepare output path
             if (!outputLive && effectiveOutput == null) {
                 tempDir = Files.createTempDirectory("crazifier-");
@@ -124,21 +126,12 @@ public class GranulatorService {
             String orc = Files.readString(orcPath);
             String sco = Files.readString(scoPath);
 
-            // Configure Csound
-            if (outputLive) {
-                csound.SetOption("-odac");
-                logger.info("Configuring Csound for live output (DAC)");
-            } else {
-                Objects.requireNonNull(effectiveOutput, "Effective output path must not be null");
-                csound.SetOption("-o" + effectiveOutput.toAbsolutePath());
-                csound.SetOption("--format=float");
-                csound.SetOption("-r96000");
-                logger.info("Configuring Csound for file output: {}", effectiveOutput);
-            }
+            // Adjust sample rate and inject HRTF paths dynamically
+            orc = adjustSampleRate(orc, sampleRate);
+            orc = injectHrtfPaths(orc, sampleRate);
 
-            // Buffer settings - increased for stability with long files
-            csound.SetOption("-b1024");
-            csound.SetOption("-B4096");
+            // Configure Csound with appropriate settings
+            configureCsound(csound, outputLive, effectiveOutput, sampleRate);
 
             logger.debug("--- ORC content ---\n{}", orc);
             logger.debug("--- SCO content ---\n{}", sco);
@@ -160,16 +153,22 @@ public class GranulatorService {
             }
 
             // Performance loop
-            logger.info("Starting Crazification performance loop...");
-            //int performResult;
+            logger.info("Starting Crazification performance loop at {} Hz...", sampleRate);
             long iterationCount = 0;
 
             while (csound.PerformKsmps() == 0 && isRunning) {
                 iterationCount++;
-                if (iterationCount % 1000 == 0) logger.debug("Performance iteration: {}", iterationCount);
-                if (iterationCount % 100 == 0) Thread.yield();
-            }
 
+                // Log progress every 1000 iterations for long files
+                if (iterationCount % 1000 == 0) {
+                    logger.debug("Performance iteration: {}", iterationCount);
+                }
+
+                // Give other threads a chance (prevent CPU hogging)
+                if (iterationCount % 100 == 0) {
+                    Thread.yield();
+                }
+            }
 
             if (!isRunning) {
                 logger.info("Crazification stopped by user after {} iterations", iterationCount);
@@ -184,6 +183,73 @@ public class GranulatorService {
             // Cleanup temp directory if created
             cleanupTempDirectory(tempDir);
         }
+    }
+
+    /**
+     * Configures a Csound instance for live or file output.
+     */
+    private void configureCsound(Csound csound, boolean outputLive, Path effectiveOutput, int sampleRate) {
+        if (outputLive) {
+            csound.SetOption("-odac");
+            csound.SetOption("-r44100");             // Live: 44.1 kHz for performance
+            csound.SetOption("--format=short");      // 16-bit for live playback
+            logger.info("Configuring Csound for live output (DAC) at 44.1 kHz, 16-bit");
+        } else {
+            csound.SetOption("-o" + effectiveOutput.toAbsolutePath());
+            csound.SetOption("--format=float");      // 32-bit float for save
+            csound.SetOption("-r96000");             // Save: 96 kHz for quality
+            logger.info("Configuring Csound for file output: {} at 96 kHz, 32-bit float", effectiveOutput);
+        }
+
+        // Buffer settings - increased for stability with long files
+        csound.SetOption("-b1024");
+        csound.SetOption("-B4096");
+    }
+
+    /**
+     * Adjusts the sample rate in the orchestra content
+     */
+    private String adjustSampleRate(String orcContent, int sampleRate) {
+        orcContent = orcContent.replaceFirst("sr\\s*=\\s*\\d+", "sr = " + sampleRate);
+        logger.info("Adjusted sample rate in ORC to {} Hz", sampleRate);
+        return orcContent;
+    }
+
+    /**
+     * Injects HRTF paths for the specified sample rate
+     */
+    private String injectHrtfPaths(String orcContent, int sampleRate) throws IOException {
+        // Dynamic HRTF file names based on desired sample rate
+        String baseName = "hrtf-" + sampleRate + "-";
+        String leftFile = baseName + "left.dat";
+        String rightFile = baseName + "right.dat";
+
+        // Create temporary copies
+        Path tempDir = Files.createTempDirectory("csound-hrtf");
+        Path leftTemp = tempDir.resolve(leftFile);
+        Path rightTemp = tempDir.resolve(rightFile);
+
+        try (InputStream leftIn = new ClassPathResource("csound/" + leftFile).getInputStream();
+             InputStream rightIn = new ClassPathResource("csound/" + rightFile).getInputStream()) {
+            Files.copy(leftIn, leftTemp);
+            Files.copy(rightIn, rightTemp);
+            logger.info("Copied HRTF files for {} Hz to temp directory", sampleRate);
+        } catch (IOException e) {
+            logger.error("Failed to load HRTF files for {} Hz - check if files exist in resources/csound/", sampleRate);
+            throw new IOException("HRTF files not found for sample rate " + sampleRate + " Hz", e);
+        }
+
+        // Replace global string definitions with absolute paths
+        String replacement = String.format("gS_HRTF_left  = \"%s\"\ngS_HRTF_right = \"%s\"",
+                leftTemp.toAbsolutePath(), rightTemp.toAbsolutePath());
+
+        orcContent = orcContent.replaceFirst(
+                "gS_HRTF_left\\s*=\\s*\"[^\"]+\"\\s*\\ngS_HRTF_right\\s*=\\s*\"[^\"]+\"",
+                replacement
+        );
+
+        logger.info("Injected HRTF paths for {} Hz: left={}, right={}", sampleRate, leftTemp, rightTemp);
+        return orcContent;
     }
 
     /**
@@ -222,8 +288,9 @@ public class GranulatorService {
 
     private void cleanupTempDirectory(Path tempDir) {
         if (tempDir != null) {
-            try (var stream = Files.walk(tempDir)) {
-                stream.sorted(Comparator.reverseOrder())
+            try {
+                Files.walk(tempDir)
+                        .sorted((a, b) -> b.compareTo(a)) // delete files before directories
                         .forEach(path -> {
                             try {
                                 Files.deleteIfExists(path);
@@ -236,7 +303,6 @@ public class GranulatorService {
             }
         }
     }
-
 
     private void ensureValidWav(Path path) throws IOException {
         if (!Files.exists(path) || Files.size(path) == 0) {
@@ -254,7 +320,7 @@ public class GranulatorService {
         }
     }
 
-    protected synchronized void cleanupCsound() {
+    private synchronized void cleanupCsound() {
         if (currentCsound != null) {
             try {
                 logger.info("Cleaning up Csound instance...");
