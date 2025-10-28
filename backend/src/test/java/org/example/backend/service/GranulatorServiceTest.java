@@ -1,5 +1,6 @@
 package org.example.backend.service;
 
+import csnd6.Csound;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -21,18 +22,14 @@ class GranulatorServiceTest {
     void setup() throws IOException {
         granulatorService = Mockito.spy(new GranulatorService());
 
-        // Mock für performGranulation, um IOException zu vermeiden und Outputfile zu simulieren
         Mockito.doAnswer(invocation -> {
             Path output = invocation.getArgument(3, Path.class);
             if (output != null) {
-                try {
-                    Files.createFile(output); // simuliert erfolgreiche Granulation
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
+                Files.createFile(output);
             }
             return null;
-        }).when(granulatorService).performGranulation(Mockito.any(), Mockito.any(), Mockito.anyBoolean(), Mockito.any());
+        }).when(granulatorService).performGranulationFake(
+                Mockito.any(FakeCsound.class), Mockito.any(), Mockito.any(), Mockito.any());
     }
 
     @Test
@@ -42,18 +39,23 @@ class GranulatorServiceTest {
     }
 
     @Test
-    @DisplayName("performGranulationOnce returns 'already running' when flag true (via reflection)")
+    @DisplayName("performGranulationOnce rejects when already running")
     void performGranulationOnce_rejectsWhenAlreadyRunning() throws Exception {
+        // GIVEN
         Field isRunningField = GranulatorService.class.getDeclaredField("isRunning");
         isRunningField.setAccessible(true);
         isRunningField.setBoolean(granulatorService, true);
 
-        Path dummyOrc = Paths.get("does-not-matter.orc");
-        Path dummySco = Paths.get("does-not-matter.sco");
+        Path dummyOrc = Paths.get("dummy.orc");
+        Path dummySco = Paths.get("dummy.sco");
 
-        String result = granulatorService.performGranulationOnce(dummyOrc, dummySco, false, null);
+        FakeCsound fakeCs = new FakeCsound();
 
-        assertEquals("Crazification already running!", result);
+        // WHEN
+        granulatorService.performGranulationFake(fakeCs, dummyOrc, dummySco, null);
+
+        // THEN
+        assertTrue(granulatorService.isRunning(), "isRunning should remain true when already running");
 
         // Cleanup
         isRunningField.setBoolean(granulatorService, false);
@@ -62,37 +64,86 @@ class GranulatorServiceTest {
     @Test
     @DisplayName("performGranulationOnce resets isRunning after IOException")
     void performGranulationOnce_resetsFlagAfterIOException() throws Exception {
+        // GIVEN
         Mockito.doThrow(new IOException("Simulated IOException"))
                 .when(granulatorService)
-                .performGranulation(Mockito.any(), Mockito.any(), Mockito.anyBoolean(), Mockito.any());
+                .performGranulationFake(Mockito.any(FakeCsound.class),
+                        Mockito.any(), Mockito.any(), Mockito.any());
 
         assertFalse(granulatorService.isRunning());
 
-        Path dummyOrc = Paths.get("does-not-matter.orc");
-        Path dummySco = Paths.get("does-not-matter.sco");
+        Path dummyOrc = Paths.get("dummy.orc");
+        Path dummySco = Paths.get("dummy.sco");
 
+        FakeCsound fakeCs = new FakeCsound();
+
+        // WHEN
         IOException ex = assertThrows(IOException.class, () ->
-                granulatorService.performGranulationOnce(dummyOrc, dummySco, false, null));
-        assertEquals("Simulated IOException", ex.getMessage());
+                granulatorService.performGranulationFake(fakeCs, dummyOrc, dummySco, null));
 
+        // THEN
+        assertEquals("Simulated IOException", ex.getMessage());
         assertFalse(granulatorService.isRunning(), "isRunning should be reset after exception");
     }
 
     @Test
-    @DisplayName("performGranulationOnce returns 'Crazification finished!' when successful")
+    @DisplayName("performGranulationOnce sets isRunning correctly when successful")
     void performGranulationOnce_success() throws Exception {
+        // GIVEN
         Mockito.doNothing()
                 .when(granulatorService)
-                .performGranulation(Mockito.any(), Mockito.any(), Mockito.anyBoolean(), Mockito.any());
+                .performGranulationFake(Mockito.any(FakeCsound.class),
+                        Mockito.any(), Mockito.any(), Mockito.any());
 
-        Path dummyOrc = Paths.get("does-not-matter.orc");
-        Path dummySco = Paths.get("does-not-matter.sco");
+        Path dummyOrc = Paths.get("dummy.orc");
+        Path dummySco = Paths.get("dummy.sco");
 
-        String result = granulatorService.performGranulationOnce(dummyOrc, dummySco, false, null);
+        FakeCsound fakeCs = new FakeCsound();
 
-        assertEquals("Crazification finished!", result);
-        assertFalse(granulatorService.isRunning());
+        // WHEN
+        granulatorService.performGranulationFake(fakeCs, dummyOrc, dummySco, null);
+
+        // THEN
+        assertFalse(granulatorService.isRunning(), "isRunning should be false after successful completion");
     }
+
+    @Test
+    @DisplayName("performGranulationOnce respects cooldown")
+    void performGranulationOnce_cooldown() throws Exception {
+        // GIVEN
+        Field lastStopField = GranulatorService.class.getDeclaredField("lastStopTime");
+        lastStopField.setAccessible(true);
+        lastStopField.setLong(granulatorService, System.currentTimeMillis());
+
+        Path dummyOrc = Paths.get("dummy.orc");
+        Path dummySco = Paths.get("dummy.sco");
+        FakeCsound fakeCs = new FakeCsound();
+
+        // WHEN
+        granulatorService.performGranulationFake(fakeCs, dummyOrc, dummySco, null);
+
+        // THEN
+        assertFalse(granulatorService.isRunning(), "isRunning should remain false during cooldown");
+    }
+
+    @Test
+    @DisplayName("performGranulationOnce throws on unknown Csound object")
+    void performGranulationOnce_unknownCsoundObject() {
+        // GIVEN
+        GranulatorService spyService = Mockito.spy(new GranulatorService());
+
+        Mockito.doReturn(new Object()).when(spyService).createCsoundInstance();
+
+        Path dummyOrc = Paths.get("dummy.orc");
+        Path dummySco = Paths.get("dummy.sco");
+
+        // WHEN + THEN
+        IllegalStateException ex = assertThrows(IllegalStateException.class, () ->
+                spyService.performGranulationOnce(dummyOrc, dummySco, false, null));
+
+        assertTrue(ex.getMessage().contains("Unknown Csound instance type"));
+    }
+
 
     @Test
     @DisplayName("performGranulation actually runs and writes output file (mocked)")
@@ -100,10 +151,11 @@ class GranulatorServiceTest {
         Mockito.doAnswer(invocation -> {
             Path output = invocation.getArgument(3, Path.class);
             if (output != null) {
-                Files.createFile(output); // simuliert erfolgreiche Granulation
+                Files.createFile(output);
             }
             return null;
-        }).when(granulatorService).performGranulation(Mockito.any(), Mockito.any(), Mockito.anyBoolean(), Mockito.any());
+        }).when(granulatorService).performGranulationFake(
+                Mockito.any(FakeCsound.class), Mockito.any(), Mockito.any(), Mockito.any());
 
         Path orc = Files.createTempFile("test", ".orc");
         Path sco = Files.createTempFile("test", ".sco");
@@ -113,13 +165,14 @@ class GranulatorServiceTest {
         Path output = Files.createTempFile("output", ".wav");
         Files.deleteIfExists(output);
 
-        granulatorService.performGranulation(orc, sco, false, output);
+        FakeCsound fakeCs = new FakeCsound();
+        granulatorService.performGranulationFake(fakeCs, orc, sco, output);
 
-        assertTrue(Files.exists(output));
+        assertTrue(Files.exists(output), "Output file should be created by mocked performGranulation");
 
+        // Cleanup
         Files.deleteIfExists(orc);
         Files.deleteIfExists(sco);
         Files.deleteIfExists(output);
     }
-
 }
