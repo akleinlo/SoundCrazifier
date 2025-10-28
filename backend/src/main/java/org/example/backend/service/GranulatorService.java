@@ -74,6 +74,7 @@ public class GranulatorService {
                 }, "Csound-LiveThread").start();
 
                 logger.info("Crazification started!");
+
             } else {
                 // Synchronous file rendering
                 try {
@@ -253,7 +254,7 @@ public class GranulatorService {
         }
     }
 
-    private synchronized void cleanupCsound() {
+    protected synchronized void cleanupCsound() {
         if (currentCsound != null) {
             try {
                 logger.info("Cleaning up Csound instance...");
