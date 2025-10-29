@@ -35,7 +35,7 @@ export default function GranulatorPlayer() {
 
         setIsCrazifying(true);
         try {
-            await axios.post("http://localhost:8080/granulator/play", formData, {
+            await axios.post("http://localhost:8080/crazifier/play", formData, {
                 headers: {"Content-Type": "multipart/form-data"},
             });
         } catch (err) {
@@ -54,7 +54,7 @@ export default function GranulatorPlayer() {
         setIsCrazifying(true);
         try {
             const response = await axios.post(
-                "http://localhost:8080/granulator/save",
+                "http://localhost:8080/crazifier/save",
                 formData,
                 {
                     headers: {"Content-Type": "multipart/form-data"},
@@ -80,7 +80,7 @@ export default function GranulatorPlayer() {
 
         setIsCrazifying(false); // turn off spinner immediately
         try {
-            await axios.post("http://localhost:8080/granulator/stop");
+            await axios.post("http://localhost:8080/crazifier/stop");
             console.log("Crazification stopped.");
         } catch (err) {
             console.error("Error stopping granulation:", err);
