@@ -16,10 +16,15 @@ import static org.junit.jupiter.api.Assertions.*;
 class GranulatorServiceTest {
 
     private GranulatorService granulatorService;
+    private TemporaryFileManager mockFileManager;
+    private CsoundConfigurator mockConfigurator;
 
     @BeforeEach
     void setup() throws IOException {
-        granulatorService = Mockito.spy(new GranulatorService());
+        mockConfigurator = Mockito.mock(CsoundConfigurator.class);
+        mockFileManager = Mockito.mock(TemporaryFileManager.class);
+
+        granulatorService = Mockito.spy(new GranulatorService(mockConfigurator, mockFileManager));
 
         Mockito.doAnswer(invocation -> {
             Path output = invocation.getArgument(3, Path.class);
@@ -129,7 +134,8 @@ class GranulatorServiceTest {
     @DisplayName("performGranulationOnce throws on unknown Csound object")
     void performGranulationOnce_unknownCsoundObject() {
         // GIVEN
-        GranulatorService spyService = Mockito.spy(new GranulatorService());
+        CsoundConfigurator mockConfigurator = Mockito.mock(CsoundConfigurator.class);
+        GranulatorService spyService = Mockito.spy(new GranulatorService(mockConfigurator, mockFileManager));
 
         Mockito.doReturn(new Object()).when(spyService).createCsoundInstance();
 

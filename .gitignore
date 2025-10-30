@@ -16,3 +16,6 @@
 /frontend/dist
 /frontend/dist-ssr
 /frontend/*.local
+
+# Spring profile config (local only)
+backend/src/main/resources/application-dev.properties
