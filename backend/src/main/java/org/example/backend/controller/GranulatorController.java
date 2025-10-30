@@ -1,8 +1,11 @@
+
 package org.example.backend.controller;
 
+import org.example.backend.service.AudioProcessor;
 import org.example.backend.service.GranulatorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
@@ -25,12 +28,15 @@ import java.util.Optional;
 public class GranulatorController {
     private static final Logger logger = LoggerFactory.getLogger(GranulatorController.class);
     private final GranulatorService granulatorService;
+    private final AudioProcessor audioProcessor;
 
     // Maximum duration in seconds to support the grain opcode and avoid crashes
     private static final double MAX_DURATION_SECONDS = 60.0;
 
-    public GranulatorController(GranulatorService granulatorService) {
+    @Autowired
+    public GranulatorController(GranulatorService granulatorService, AudioProcessor audioProcessor) {
         this.granulatorService = granulatorService;
+        this.audioProcessor = audioProcessor;
     }
 
     @PostMapping("/play")
@@ -38,6 +44,7 @@ public class GranulatorController {
             @RequestParam("audioFile") MultipartFile audioFile,
             @RequestParam("duration") double duration) throws IOException {
 
+        // 1. duration limit check
         if (duration > MAX_DURATION_SECONDS) {
             String message = String.format("File is too long! Maximum duration is %.1f seconds to ensure stability (requested: %.1f s).",
                     MAX_DURATION_SECONDS, duration);
@@ -46,6 +53,7 @@ public class GranulatorController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, message);
         }
 
+        // 2. concurrency check
         if (granulatorService.isRunning()) {
             logger.info("Crazification already running, rejecting new play request");
             return new ResponseEntity<>("Crazification already running!", HttpStatus.CONFLICT);
@@ -68,6 +76,7 @@ public class GranulatorController {
         }
 
         Path tempOutput = handleGranulationSync(audioFile, duration, false);
+
         if (tempOutput == null) {
             logger.error("Temporary output path was null during save process.");
             throw new IllegalStateException("tempOutput should never be null in /save");
@@ -86,9 +95,9 @@ public class GranulatorController {
     private Path handleGranulationSync(MultipartFile audioFile, double duration, boolean live) throws IOException {
         String tempDir = System.getProperty("java.io.tmpdir");
         String originalFilename = Optional.ofNullable(audioFile.getOriginalFilename()).orElse("audio-unknown");
+
         // Save temp file with original extension to make detection easier for SoX
         String fileExtension = originalFilename.substring(originalFilename.lastIndexOf('.'));
-
         Path tempAudio = Files.createTempFile(Path.of(tempDir), "audio-", fileExtension);
         Path tempSco = Files.createTempFile(Path.of(tempDir), "granular-", ".sco");
 
@@ -96,17 +105,18 @@ public class GranulatorController {
         Files.write(tempAudio, audioFile.getBytes());
 
         Path audioForCsound;
+
         // When saving: Resample/Convert to 96 kHz WAV
         if (!live) {
             logger.info("Converting/Resampling audio for high-quality output...");
             // Using SoX to *always* convert to WAV and resample
-            audioForCsound = resampleWithSox(tempAudio, 96000);
+            audioForCsound = audioProcessor.resampleWithSox(tempAudio, 96000);
             // Delete the original temp file, as SoX creates a new one.
             Files.deleteIfExists(tempAudio);
         } else {
             // For live playback, the file must be converted to a WAV file with 44.1 kHz
             logger.info("Converting/Resampling audio for live 44.1 kHz output...");
-            audioForCsound = resampleWithSox(tempAudio, 44100);
+            audioForCsound = audioProcessor.resampleWithSox(tempAudio, 44100);
             Files.deleteIfExists(tempAudio);
         }
 
@@ -141,58 +151,10 @@ public class GranulatorController {
         }
     }
 
-    /**
-     * Resamples/converts any audio file to WAV format at the target sample rate using SoX.
-     * @param inputPath The path to the original file (e.g., MP3, WAV, AIFF)
-     * @param targetSampleRate The target sample rate
-     * @return The path to the new temporary WAV file.
-     */
-    private Path resampleWithSox(Path inputPath, int targetSampleRate) throws IOException {
-        Path resampledPath = Files.createTempFile(inputPath.getParent(), "resampled-", ".wav");
-
-        logger.info("Resampling/Converting {} to {} Hz WAV using SoX...", inputPath.getFileName(), targetSampleRate);
-
-        ProcessBuilder pb = new ProcessBuilder(
-                "sox",
-                inputPath.toString(), // Input (f.e. .mp3)
-                "-r", String.valueOf(targetSampleRate), // Resample-Option
-                resampledPath.toString(), // Output (.wav)
-                "rate", "-v" // High-quality resampling
-        );
-
-        pb.redirectErrorStream(true);
-
-        try {
-            Process process = pb.start();
-
-            // Read output for debugging
-            String output = new String(process.getInputStream().readAllBytes());
-            if (!output.isEmpty()) {
-                logger.debug("SoX output: {}", output);
-            }
-
-            int exitCode = process.waitFor();
-
-            if (exitCode != 0) {
-                logger.error("SoX failed with exit code: {}", exitCode);
-                if (!output.isEmpty()) {
-                    logger.error("SoX detailed output:\n{}", output);
-                }
-                throw new IOException("SoX conversion/resampling failed with exit code: " + exitCode);
-            }
-
-            logger.info("Successfully converted/resampled to {} Hz WAV at {}", targetSampleRate, resampledPath.getFileName());
-            return resampledPath;
-
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new IOException("SoX process interrupted", e);
-        }
-    }
-
     @PostMapping("/stop")
     public String stopAudio() {
         granulatorService.stopGranulation();
         return "Crazification stopped!";
     }
 }
+

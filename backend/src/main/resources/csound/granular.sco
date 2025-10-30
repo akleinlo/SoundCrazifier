@@ -10,7 +10,7 @@ f1 0 0 1 "REPLACE_ME" 0 0 0
 
 ;---------------------------------------------
 ; i1=instrument, p2=start time, p3=duration
-; p4–p26 are parameters that you can be varied
+; p4–p34 are parameters that you can be varied
 ;---------------------------------------------
 
 i1  0.0       20.0 \
