@@ -9,6 +9,7 @@ export default function GranulatorPlayer() {
     const [duration, setDuration] = useState(20); // default 20s
     const [newDuration, setNewDuration] = useState(duration);
     const [isCrazifying, setIsCrazifying] = useState(false);
+    const [crazifyLevel, setCrazifyLevel] = useState(5); // Default Level 5
 
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -17,7 +18,7 @@ export default function GranulatorPlayer() {
             setFile(firstFile);
             setFilename(firstFile.name.replace(".wav", "-crazified.wav"));
 
-            // Dauer des Files ermitteln
+            // Duration of Soundfile
             const audio = new Audio(URL.createObjectURL(firstFile));
             audio.addEventListener("loadedmetadata", () => {
                 const fileDuration = parseFloat(audio.duration.toFixed(3));
@@ -32,6 +33,7 @@ export default function GranulatorPlayer() {
         const formData = new FormData();
         formData.append("audioFile", file);
         formData.append("duration", duration.toString());
+        formData.append("crazifyLevel", crazifyLevel.toString());
 
         setIsCrazifying(true);
         try {
@@ -50,6 +52,7 @@ export default function GranulatorPlayer() {
         const formData = new FormData();
         formData.append("audioFile", file);
         formData.append("duration", duration.toString());
+        formData.append("crazifyLevel", crazifyLevel.toString());
 
         setIsCrazifying(true);
         try {
@@ -89,24 +92,29 @@ export default function GranulatorPlayer() {
 
 
     return (
-        <div style={{
-            padding: "2rem",
-            fontFamily: "sans-serif",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: "1.5rem"
-        }}>
+        <div
+            style={{
+                padding: "2rem",
+                fontFamily: "sans-serif",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: "1.5rem",
+            }}
+        >
             {/* Choose File */}
             <div>
-                <label htmlFor="fileInput" style={{
-                    cursor: "pointer",
-                    padding: "0.5rem 1rem",
-                    backgroundColor: "#000",
-                    color: "#fff",
-                    borderRadius: "4px",
-                    fontWeight: "bold"
-                }}>
+                <label
+                    htmlFor="fileInput"
+                    style={{
+                        cursor: "pointer",
+                        padding: "0.5rem 1rem",
+                        backgroundColor: "#000",
+                        color: "#fff",
+                        borderRadius: "4px",
+                        fontWeight: "bold",
+                    }}
+                >
                     Choose File
                 </label>
                 <input
@@ -114,14 +122,42 @@ export default function GranulatorPlayer() {
                     type="file"
                     accept="audio/*"
                     onChange={handleFileChange}
-                    style={{display: "none"}}
+                    style={{ display: "none" }}
                 />
-                {file && <span style={{marginLeft: "1rem"}}>{file.name}</span>}
+                {file && <span style={{ marginLeft: "1rem" }}>{file.name}</span>}
             </div>
 
-            {/* Duration + Update Button */}
+            {/* 🎛️ Crazification Level */}
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <label>
+                    Crazification Level:
+                    <select
+                        value={crazifyLevel}
+                        onChange={(e) => setCrazifyLevel(parseInt(e.target.value))}
+                        style={{ marginLeft: "0.5rem", padding: "0.25rem" }}
+                    >
+                        {[...Array(10)].map((_, i) => (
+                            <option key={i + 1} value={i + 1}>
+                                Level {i + 1}
+                            </option>
+                        ))}
+                    </select>
+                </label>
+            </div>
+
+            {/* Optional visuelles Feedback */}
+            <div
+                style={{
+                    width: "200px",
+                    height: "10px",
+                    background: `linear-gradient(to right, #00f, #f0f ${crazifyLevel * 10}%)`,
+                    borderRadius: "5px",
+                }}
+            />
+
+            {/* Duration */}
             {file && (
-                <div style={{display: "flex", alignItems: "center", gap: "0.5rem"}}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                     <label>
                         Duration (seconds):
                         <input
@@ -129,8 +165,14 @@ export default function GranulatorPlayer() {
                             min={1}
                             step={0.01}
                             value={newDuration}
-                            onChange={(e) => setNewDuration(parseFloat(e.target.value.replace(",", ".")))}
-                            style={{marginLeft: "0.5rem", padding: "0.25rem", width: "80px"}}
+                            onChange={(e) =>
+                                setNewDuration(parseFloat(e.target.value.replace(",", ".")))
+                            }
+                            style={{
+                                marginLeft: "0.5rem",
+                                padding: "0.25rem",
+                                width: "80px",
+                            }}
                         />
                     </label>
                     <button
@@ -140,7 +182,7 @@ export default function GranulatorPlayer() {
                             backgroundColor: "#333",
                             color: "#fff",
                             borderRadius: "4px",
-                            cursor: "pointer"
+                            cursor: "pointer",
                         }}
                     >
                         Update
@@ -148,7 +190,7 @@ export default function GranulatorPlayer() {
                 </div>
             )}
 
-            {/* Play, Save, Stop + Spinner */}
+            {/* Play / Save / Stop */}
             <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
                 <button
                     onClick={handlePlay}
@@ -159,7 +201,7 @@ export default function GranulatorPlayer() {
                         border: "none",
                         borderRadius: "4px",
                         cursor: "pointer",
-                        fontWeight: "bold"
+                        fontWeight: "bold",
                     }}
                 >
                     Play
@@ -174,7 +216,7 @@ export default function GranulatorPlayer() {
                         border: "none",
                         borderRadius: "4px",
                         cursor: "pointer",
-                        fontWeight: "bold"
+                        fontWeight: "bold",
                     }}
                 >
                     Save
@@ -189,7 +231,7 @@ export default function GranulatorPlayer() {
                         border: "none",
                         borderRadius: "4px",
                         cursor: "pointer",
-                        fontWeight: "bold"
+                        fontWeight: "bold",
                     }}
                 >
                     Stop
@@ -212,25 +254,32 @@ export default function GranulatorPlayer() {
                             type="text"
                             value={filename}
                             onChange={(e) => setFilename(e.target.value)}
-                            style={{padding: "0.25rem", width: "250px"}}
+                            style={{ padding: "0.25rem", width: "250px" }}
                         />
                     </label>
                 </div>
             )}
 
             {/* Browser info */}
-            <div style={{
-                fontSize: "0.9rem",
-                color: "#555",
-                textAlign: "justify",
-                textAlignLast: "center",
-                maxWidth: "400px",
-                marginTop: "1rem"
-            }}>
-                <strong>Save as…</strong><br/>
-                By default, the crazified file will be saved in your Downloads folder.<br/>
-                You can configure your browser to ask for the save location before downloading:<br/>
-                <em>Safari/Chrome:</em> Settings → Downloads → "Ask where to save each file before downloading"
+            <div
+                style={{
+                    fontSize: "0.9rem",
+                    color: "#555",
+                    textAlign: "justify",
+                    textAlignLast: "center",
+                    maxWidth: "400px",
+                    marginTop: "1rem",
+                }}
+            >
+                <strong>Save as…</strong>
+                <br />
+                By default, the crazified file will be saved in your Downloads folder.
+                <br />
+                You can configure your browser to ask for the save location before
+                downloading:
+                <br />
+                <em>Safari/Chrome:</em> Settings → Downloads → "Ask where to save each
+                file before downloading"
             </div>
         </div>
     );

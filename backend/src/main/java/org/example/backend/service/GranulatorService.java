@@ -6,7 +6,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import javax.sound.sampled.*;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -60,7 +59,11 @@ public class GranulatorService {
     /**
      * Starts granulation (live or offline)
      */
-    public synchronized String performGranulationOnce(Path orcPath, Path scoPath, boolean outputLive, Path outputPath) throws IOException {
+    public synchronized String performGranulationOnce(
+            Path orcPath,
+            Path scoPath,
+            boolean outputLive,
+            Path outputPath) throws IOException {
         // Step 1: Cooldown check
         if (checkCooldown()) {
             logger.warn("Cooldown active – quick repeat rejected.");
@@ -338,4 +341,5 @@ public class GranulatorService {
 
 
 }
+
 
