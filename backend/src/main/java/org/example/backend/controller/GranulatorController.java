@@ -1,4 +1,3 @@
-
 package org.example.backend.controller;
 
 import org.example.backend.service.AudioProcessor;
@@ -15,7 +14,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
-import javax.sound.sampled.*;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -42,40 +40,39 @@ public class GranulatorController {
     @PostMapping("/play")
     public ResponseEntity<String> playAudio(
             @RequestParam("audioFile") MultipartFile audioFile,
-            @RequestParam("duration") double duration) throws IOException {
+            @RequestParam("duration") double duration,
+            @RequestParam("crazifyLevel") int crazifyLevel) throws IOException {
 
-        // 1. duration limit check
         if (duration > MAX_DURATION_SECONDS) {
-            String message = String.format("File is too long! Maximum duration is %.1f seconds to ensure stability (requested: %.1f s).",
+            String message = String.format("File is too long! Maximum duration is %.1f seconds (requested: %.1f s).",
                     MAX_DURATION_SECONDS, duration);
             logger.warn(message);
-            // ResponseStatusException to return the HTTP 400 status code
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, message);
         }
 
-        // 2. concurrency check
         if (granulatorService.isRunning()) {
             logger.info("Crazification already running, rejecting new play request");
             return new ResponseEntity<>("Crazification already running!", HttpStatus.CONFLICT);
         }
 
-        handleGranulationSync(audioFile, duration, true);
-        return new ResponseEntity<>("Crazification started!", HttpStatus.OK);
+        handleGranulationSync(audioFile, duration, crazifyLevel, true);
+        return new ResponseEntity<>("Crazification started for level " + crazifyLevel, HttpStatus.OK);
     }
 
     @PostMapping("/save")
     public ResponseEntity<Resource> saveAudio(
             @RequestParam("audioFile") MultipartFile audioFile,
-            @RequestParam("duration") double duration) throws IOException {
+            @RequestParam("duration") double duration,
+            @RequestParam("crazifyLevel") int crazifyLevel) throws IOException {
 
         if (duration > MAX_DURATION_SECONDS) {
-            String message = String.format("File is too long! Maximum duration is %.1f seconds to ensure stability (requested: %.1f s).",
+            String message = String.format("File is too long! Maximum duration is %.1f seconds (requested: %.1f s).",
                     MAX_DURATION_SECONDS, duration);
             logger.warn(message);
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, message);
         }
 
-        Path tempOutput = handleGranulationSync(audioFile, duration, false);
+        Path tempOutput = handleGranulationSync(audioFile, duration, crazifyLevel, false);
 
         if (tempOutput == null) {
             logger.error("Temporary output path was null during save process.");
@@ -84,7 +81,7 @@ public class GranulatorController {
 
         Resource resource = new org.springframework.core.io.PathResource(tempOutput);
         String originalName = Optional.ofNullable(audioFile.getOriginalFilename()).orElse("granulated");
-        String downloadName = originalName.replaceFirst("\\..*$", "-crazified.wav"); // Ersetzt die alte Endung durch .wav
+        String downloadName = originalName.replaceFirst("\\..*$", "-crazified.wav");
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + downloadName + "\"")
@@ -92,45 +89,42 @@ public class GranulatorController {
                 .body(resource);
     }
 
-    private Path handleGranulationSync(MultipartFile audioFile, double duration, boolean live) throws IOException {
+    private Path handleGranulationSync(MultipartFile audioFile, double duration, int crazifyLevel, boolean live) throws IOException {
         String tempDir = System.getProperty("java.io.tmpdir");
         String originalFilename = Optional.ofNullable(audioFile.getOriginalFilename()).orElse("audio-unknown");
 
-        // Save temp file with original extension to make detection easier for SoX
+        // Save temp file with original extension
         String fileExtension = originalFilename.substring(originalFilename.lastIndexOf('.'));
         Path tempAudio = Files.createTempFile(Path.of(tempDir), "audio-", fileExtension);
         Path tempSco = Files.createTempFile(Path.of(tempDir), "granular-", ".sco");
 
-        // save Audio
         Files.write(tempAudio, audioFile.getBytes());
 
         Path audioForCsound;
 
-        // When saving: Resample/Convert to 96 kHz WAV
         if (!live) {
             logger.info("Converting/Resampling audio for high-quality output...");
-            // Using SoX to *always* convert to WAV and resample
             audioForCsound = audioProcessor.resampleWithSox(tempAudio, 96000);
-            // Delete the original temp file, as SoX creates a new one.
             Files.deleteIfExists(tempAudio);
         } else {
-            // For live playback, the file must be converted to a WAV file with 44.1 kHz
             logger.info("Converting/Resampling audio for live 44.1 kHz output...");
             audioForCsound = audioProcessor.resampleWithSox(tempAudio, 44100);
             Files.deleteIfExists(tempAudio);
         }
 
-        // load Score
-        Path scoResourcePath = new ClassPathResource("csound/granular.sco").getFile().toPath();
+        // Level absichern (1–10)
+        int level = Math.max(1, Math.min(crazifyLevel, 10));
+        String scoFilename = "csound/granular" + level + ".sco";
+
+        Path scoResourcePath = new ClassPathResource(scoFilename).getFile().toPath();
         String scoContent = Files.readString(scoResourcePath, StandardCharsets.UTF_8);
 
-        // Replace REPLACE_ME with path of the *converted* WAV file
+        // Ersetze Platzhalter durch Pfad der konvertierten WAV
         scoContent = scoContent.replace("\"REPLACE_ME\"", "\"" + audioForCsound.toAbsolutePath() + "\"");
 
-        // replace p3
-        scoContent = scoContent.replaceFirst("(i1\\s+0\\.0\\s+)(\\d+\\.?\\d*)", "$1" + duration);
+        // Ersetze Dauer-Platzhalter REPLACE_ME_DURATION
+        scoContent = scoContent.replace("REPLACE_ME_DURATION", String.valueOf(duration));
 
-        // write new .sco
         Files.writeString(tempSco, scoContent, StandardCharsets.UTF_8);
 
         Path orcPath = new ClassPathResource("csound/granular.orc").getFile().toPath();
@@ -139,9 +133,9 @@ public class GranulatorController {
         logger.info("Temporary Csound input audio file created at {}", audioForCsound);
         logger.info("Temporary SCO file created at {}", tempSco);
         logger.info("Using duration: {} seconds", duration);
+        logger.info("Using crazify level: {}", level);
 
         if (live) {
-            // Service starts the background thread for live playback internally
             granulatorService.performGranulationOnce(orcPath, tempSco, true, null);
             return null;
         } else {
@@ -151,10 +145,10 @@ public class GranulatorController {
         }
     }
 
+
     @PostMapping("/stop")
     public String stopAudio() {
         granulatorService.stopGranulation();
         return "Crazification stopped!";
     }
 }
-
