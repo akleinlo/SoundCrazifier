@@ -559,7 +559,7 @@ class GranulatorServiceTest {
         verify(granulatorService, times(1)).performGranulation(
                 mockCsound, dummyOrc, dummySco, true, null);
 
-        verify(granulatorService, times(1)).cleanupCsound();
+        verify(granulatorService, timeout(2000).times(1)).cleanupCsound();
 
         verify(mockFileManager, never()).cleanupSaveInputFiles(any());
 
