@@ -16,7 +16,7 @@ f1 0 0 1 "REPLACE_ME" 0 0 0
 ;----------------- CRAZIFICATION LEVEL 10 -----------------
 i1  0         REPLACE_ME_DURATION \
     0.025     0.6     3.25   16.5 \        ; iampMin, iampMax, kampCpsMin, kampCpsMax
-    0.3       3.0     3.25   16.5 \        ; ipitchMin, ipitchMax, kpitchCpsMin, kpitchCpsMax
+    0.3       2.25    3.25   16.5 \        ; ipitchMin, ipitchMax, kpitchCpsMin, kpitchCpsMax
     2.0       23.0    3.25   16.5 \        ; idensMin, idensMax, kdensCpsMin, kdensCpsMax
               0.275   3.25   16.5 \        ; kampoffMin(0 fix), kampoffMax, kampoffCpsMin, kampoffCpsMax
     -0.275    0.275   3.25   16.5 \        ; kpitchoffMin, kpitchoffMax, kpitchoffCpsMin, kpitchoffCpsMax
