@@ -202,7 +202,6 @@ class GranulatorServiceTest {
 
         String orcString = orc.toString();
         String scoString = sco.toString();
-        String outputString = output.toString();
 
         Path tempDir = Paths.get("/tmp/granulation_temp");
         GranulatorService.PreparationResult mockPrepResult = Mockito.mock(GranulatorService.PreparationResult.class);
@@ -224,20 +223,20 @@ class GranulatorServiceTest {
 
         // THEN
         verify(granulatorService, times(1)).prepareOutputAndHrtf(
-                eq(orc), eq(sco), eq(output), eq(96000), eq(false));
+                orc, sco, output, 96000, false);
 
         // Verification: Corrected to use Strings for orc/sco/output, if configureAndCompileCsound expects them
         verify(granulatorService, times(1)).configureAndCompileCsound(
-                eq(mockCsound),
-                eq(orcString),
-                eq(scoString),
-                eq(output),
-                eq(false),
-                eq(96000));
+                mockCsound,
+                orcString,
+                scoString,
+                output,
+                false,
+                96000);
 
         verify(granulatorService, times(1)).performLoop(eq(mockCsound), eq(96000));
 
-        verify(mockFileManager, times(1)).cleanupTempDirectory(eq(tempDir));
+        verify(mockFileManager, times(1)).cleanupTempDirectory(tempDir);
     }
 
     @Test
@@ -274,7 +273,7 @@ class GranulatorServiceTest {
 
         // THEN
         verify(granulatorService, times(1)).prepareOutputAndHrtf(
-                eq(orc), eq(sco), eq(output), eq(LIVE_SR), eq(true));
+                orc, sco, output, LIVE_SR, true);
 
         verify(granulatorService, times(1)).configureAndCompileCsound(
                 eq(mockCsound),
@@ -284,9 +283,9 @@ class GranulatorServiceTest {
                 eq(true),
                 eq(LIVE_SR));
 
-        verify(granulatorService, times(1)).performLoop(eq(mockCsound), eq(LIVE_SR));
+        verify(granulatorService, times(1)).performLoop(mockCsound, LIVE_SR);
 
-        verify(mockFileManager, times(1)).cleanupTempDirectory(eq(tempDir));
+        verify(mockFileManager, times(1)).cleanupTempDirectory(tempDir);
     }
 
     @Test
@@ -323,7 +322,7 @@ class GranulatorServiceTest {
         assertEquals("Crazification failed", ex.getMessage());
         assertEquals(failure, ex.getCause(), "The original RuntimeException should be set as the cause.");
 
-        verify(mockFileManager, times(1)).cleanupTempDirectory(eq(tempDir));
+        verify(mockFileManager, times(1)).cleanupTempDirectory(tempDir);
 
         verify(granulatorService, times(1)).configureAndCompileCsound(
                 eq(mockCsound),
@@ -432,7 +431,7 @@ class GranulatorServiceTest {
 
     @Test
     @DisplayName("createCsoundInstance returns a Csound compatible object (FakeCsound) in test environment")
-    void createCsoundInstance_returnsCsoundCompatibleObject() throws Exception {
+    void createCsoundInstance_returnsCsoundCompatibleObject() {
         // GIVEN
         Mockito.doReturn(new FakeCsound()).when(granulatorService).createCsoundInstance();
 
@@ -527,7 +526,6 @@ class GranulatorServiceTest {
         CountDownLatch latch = new CountDownLatch(1);
 
         doAnswer(invocation -> {
-            Thread.sleep(100);
             latch.countDown();
             return null;
         }).when(granulatorService).performGranulation(
@@ -746,7 +744,7 @@ class GranulatorServiceTest {
             CsoundConfigurator.HrtfInjectionResult mockHrtfResult =
                     new CsoundConfigurator.HrtfInjectionResult(injectedOrc, hrtfTempDir);
 
-            when(mockConfigurator.injectHrtfPaths(eq(adjustedOrc), eq(sampleRate))).thenReturn(mockHrtfResult);
+            when(mockConfigurator.injectHrtfPaths(adjustedOrc, sampleRate)).thenReturn(mockHrtfResult);
 
             // WHEN
             GranulatorService.PreparationResult result = granulatorService.prepareOutputAndHrtf(
@@ -757,8 +755,8 @@ class GranulatorServiceTest {
             verify(mockFileManager, times(1)).ensureValidWav(outputPath);
             mockedFiles.verify(() -> Files.createTempDirectory(anyString()), never()); // No temp dir created
 
-            verify(mockConfigurator).adjustSampleRate(eq("original ORC content"), eq(sampleRate));
-            verify(mockConfigurator).injectHrtfPaths(eq(adjustedOrc), eq(sampleRate));
+            verify(mockConfigurator).adjustSampleRate("original ORC content", sampleRate);
+            verify(mockConfigurator).injectHrtfPaths(adjustedOrc, sampleRate);
 
             assertEquals(outputPath, result.effectiveOutput(), "Effective output should be the given path.");
             assertNull(result.tempDir(), "tempDir should be null as no temporary directory was created.");
@@ -799,7 +797,7 @@ class GranulatorServiceTest {
             mockedFiles.verify(() -> Files.createTempDirectory(eq("crazifier-")), times(1));
             mockedFiles.verify(() -> Files.createTempFile(eq(createdTempDir), anyString(), eq(".wav")), times(1));
 
-            verify(mockFileManager, times(1)).ensureValidWav(eq(createdTempFile));
+            verify(mockFileManager, times(1)).ensureValidWav(createdTempFile);
 
             assertEquals(createdTempFile, result.effectiveOutput(), "Effective output must be the newly created temporary file.");
             assertEquals(createdTempDir, result.tempDir(), "tempDir must be the root of the temporary files.");
@@ -833,7 +831,7 @@ class GranulatorServiceTest {
             CsoundConfigurator.HrtfInjectionResult mockHrtfResult =
                     new CsoundConfigurator.HrtfInjectionResult(injectedOrc, null);
 
-            when(mockConfigurator.injectHrtfPaths(eq(adjustedOrc), eq(sampleRate))).thenReturn(mockHrtfResult);
+            when(mockConfigurator.injectHrtfPaths(adjustedOrc, sampleRate)).thenReturn(mockHrtfResult);
 
 
             // WHEN
@@ -845,10 +843,10 @@ class GranulatorServiceTest {
 
             mockedFiles.verify(() -> Files.createDirectories(eq(expectedParentDir)), times(1));
 
-            verify(mockFileManager, times(1)).ensureValidWav(eq(outputPath));
+            verify(mockFileManager, times(1)).ensureValidWav(outputPath);
 
-            verify(mockConfigurator).adjustSampleRate(eq("live ORC"), eq(sampleRate));
-            verify(mockConfigurator).injectHrtfPaths(eq(adjustedOrc), eq(sampleRate));
+            verify(mockConfigurator).adjustSampleRate("live ORC", sampleRate);
+            verify(mockConfigurator).injectHrtfPaths(adjustedOrc, sampleRate);
 
             assertEquals(outputPath, result.effectiveOutput(), "Effective output should be the given path (it is passed through).");
             assertNull(result.tempDir(), "tempDir must be null in Live mode.");
@@ -878,12 +876,12 @@ class GranulatorServiceTest {
 
         // THEN
         verify(mockConfigurator, times(1)).configureCsound(
-                eq(mockCsound), eq(false), eq(outputPath), eq(sampleRate));
+                mockCsound, false, outputPath, sampleRate);
 
-        verify(mockCsound, times(1)).SetGlobalEnv(eq("RAWADDF"), eq("1"));
+        verify(mockCsound, times(1)).SetGlobalEnv("RAWADDF", "1");
 
-        verify(mockCsound, times(1)).CompileOrc(eq(orcContent));
-        verify(mockCsound, times(1)).ReadScore(eq(scoContent));
+        verify(mockCsound, times(1)).CompileOrc(orcContent);
+        verify(mockCsound, times(1)).ReadScore(scoContent);
         verify(mockCsound, times(1)).Start();
     }
 
@@ -912,10 +910,10 @@ class GranulatorServiceTest {
         verify(mockConfigurator, times(1)).configureCsound(
                 eq(mockCsound), eq(true), isNull(), eq(sampleRate));
 
-        verify(mockCsound, times(1)).SetGlobalEnv(eq("RAWADDF"), eq("1"));
+        verify(mockCsound, times(1)).SetGlobalEnv("RAWADDF", "1");
 
-        verify(mockCsound, times(1)).CompileOrc(eq(orcContent));
-        verify(mockCsound, times(1)).ReadScore(eq(scoContent));
+        verify(mockCsound, times(1)).CompileOrc(orcContent);
+        verify(mockCsound, times(1)).ReadScore(scoContent);
         verify(mockCsound, times(1)).Start();
     }
 
@@ -928,7 +926,7 @@ class GranulatorServiceTest {
             int compileOrcResult,
             int readScoreResult,
             int startResult,
-            String expectedMessage) throws Exception {
+            String expectedMessage) {
 
         // GIVEN
         Csound mockCsound = Mockito.mock(Csound.class);
@@ -1096,8 +1094,8 @@ class GranulatorServiceTest {
         verify(mockCsound, times(1)).Reset();
         verify(mockCsound, times(1)).Cleanup();
 
-        verify(mockFileManager, times(1)).cleanupTempDirectory(eq(mockHrtfDir));
-        verify(mockFileManager, times(1)).cleanupLiveInputFiles(eq(mockAudioPath), eq(mockScoPath));
+        verify(mockFileManager, times(1)).cleanupTempDirectory(mockHrtfDir);
+        verify(mockFileManager, times(1)).cleanupLiveInputFiles(mockAudioPath, mockScoPath);
 
         assertNull(csoundField.get(granulatorService), "currentCsound must be set to null.");
         assertFalse(isRunningField.getBoolean(granulatorService), "isRunning must be set to false.");
@@ -1167,7 +1165,7 @@ class GranulatorServiceTest {
         // THEN
         verify(mockCsound, times(1)).Stop();
 
-        verify(mockFileManager, times(1)).cleanupTempDirectory(eq(mockHrtfDir));
+        verify(mockFileManager, times(1)).cleanupTempDirectory(mockHrtfDir);
 
         assertNull(csoundField.get(granulatorService), "currentCsound must be set to null.");
     }
