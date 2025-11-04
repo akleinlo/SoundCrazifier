@@ -181,12 +181,12 @@ public class GranulatorService {
         return new Csound();
     }
 
-    private boolean checkCooldown() {
+    protected boolean checkCooldown() {
         long now = System.currentTimeMillis();
         return now - lastStopTime < COOLDOWN_MS;
     }
 
-    private void forceCleanupIfNeeded() {
+    protected void forceCleanupIfNeeded() {
         if (currentCsound != null) {
             logger.warn("Clean up any lingering Csound instances before starting the new instance.");
             cleanupCsound();
@@ -199,7 +199,7 @@ public class GranulatorService {
         }
     }
 
-    private void captureLiveFilePaths(Path scoPath) {
+    protected void captureLiveFilePaths(Path scoPath) {
         String audioPath = fileManager.getAudioPathFromSco(scoPath);
         if (audioPath != null) {
             this.currentLiveAudioPath = Path.of(audioPath);
@@ -207,7 +207,7 @@ public class GranulatorService {
         this.currentLiveScoPath = scoPath;
     }
 
-    private String handleRealCsound(Csound csound, Path orcPath, Path scoPath,
+    protected String handleRealCsound(Csound csound, Path orcPath, Path scoPath,
                                     boolean outputLive, Path outputPath) throws IOException {
         currentCsound = csound;
         isRunning = true;
@@ -236,7 +236,7 @@ public class GranulatorService {
         }
     }
 
-    private String handleFakeCsound(FakeCsound fake, Path orcPath, Path scoPath, Path outputPath) throws IOException {
+    protected String handleFakeCsound(FakeCsound fake, Path orcPath, Path scoPath, Path outputPath) throws IOException {
         isRunning = true;
         try {
             performGranulationFake(fake, orcPath, scoPath, outputPath);
@@ -246,9 +246,16 @@ public class GranulatorService {
         }
     }
 
-    private record PreparationResult(Path effectiveOutput, Path tempDir, Path hrtfTempDir, String orc, String sco) {}
+    protected record PreparationResult(
+            Path effectiveOutput,
+            Path tempDir,
+            Path hrtfTempDir,
+            String orc,
+            String sco
+    ) {
+    }
 
-    private PreparationResult prepareOutputAndHrtf(Path orcPath, Path scoPath, Path outputPath, int sampleRate, boolean outputLive) throws IOException {
+    protected PreparationResult prepareOutputAndHrtf(Path orcPath, Path scoPath, Path outputPath, int sampleRate, boolean outputLive) throws IOException {
         Path tempDir = null;
         Path effectiveOutput = outputPath;
 
@@ -269,10 +276,16 @@ public class GranulatorService {
         orc = csoundConfigurator.adjustSampleRate(orc, sampleRate);
         CsoundConfigurator.HrtfInjectionResult hrtfResult = csoundConfigurator.injectHrtfPaths(orc, sampleRate);
 
-        return new PreparationResult(effectiveOutput, tempDir, hrtfResult.tempDir(), hrtfResult.orcContent(), sco);
+        return new PreparationResult(
+                effectiveOutput,
+                tempDir,
+                hrtfResult.tempDir(),
+                hrtfResult.orcContent(),
+                sco
+        );
     }
 
-    private void configureAndCompileCsound(Csound csound, String orc, String sco,
+    protected void configureAndCompileCsound(Csound csound, String orc, String sco,
                                            Path output, boolean outputLive, int sampleRate) throws IOException {
         csoundConfigurator.configureCsound(csound, outputLive, output, sampleRate);
 
@@ -290,7 +303,7 @@ public class GranulatorService {
             throw new IOException("Error starting Csound");
     }
 
-    private void performLoop(Csound csound, int sampleRate) {
+    protected void performLoop(Csound csound, int sampleRate) {
         logger.info("Start Crazification performance loop at {} Hz...", sampleRate);
         long iterationCount = 0;
 
@@ -310,7 +323,7 @@ public class GranulatorService {
             logger.info("Crazification completed after {} iterations", iterationCount);
     }
 
-    private synchronized void cleanupCsound() {
+    protected synchronized void cleanupCsound() {
         try {
             if (currentCsound != null) {
                 logger.info("Cleaning up Csound instance...");
@@ -337,7 +350,6 @@ public class GranulatorService {
             currentHrtfTempDir = null;
         }
     }
-
 
 
 }
