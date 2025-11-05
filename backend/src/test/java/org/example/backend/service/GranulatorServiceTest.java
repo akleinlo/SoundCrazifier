@@ -18,10 +18,11 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
-        import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.*;
 
 class GranulatorServiceTest {
 
@@ -49,6 +50,26 @@ class GranulatorServiceTest {
                 Mockito.any(FakeCsound.class), Mockito.any(), Mockito.any(), Mockito.any());
     }
 
+    /**
+     * Helper method to safely access and set the internal isRunning AtomicBoolean field
+     * in the GranulatorService instance via reflection.
+     */
+    private void setRunningStatus(boolean status) throws Exception {
+        Field field = GranulatorService.class.getDeclaredField("isRunning");
+        field.setAccessible(true);
+        ((AtomicBoolean) field.get(granulatorService)).set(status);
+    }
+
+    /**
+     * Helper method to safely access and get the internal isRunning AtomicBoolean field
+     * in the GranulatorService instance via reflection.
+     */
+    private boolean getRunningStatus() throws Exception {
+        Field field = GranulatorService.class.getDeclaredField("isRunning");
+        field.setAccessible(true);
+        return ((AtomicBoolean) field.get(granulatorService)).get();
+    }
+
     @Test
     @DisplayName("isRunning initially false")
     void initiallyNotRunning() {
@@ -59,9 +80,8 @@ class GranulatorServiceTest {
     @DisplayName("performGranulationOnce rejects when already running")
     void performGranulationOnce_rejectsWhenAlreadyRunning() throws Exception {
         // GIVEN
-        Field isRunningField = GranulatorService.class.getDeclaredField("isRunning");
-        isRunningField.setAccessible(true);
-        isRunningField.setBoolean(granulatorService, true);
+        // Field isRunningField Deklaration entfernt
+        setRunningStatus(true);
 
         Path dummyOrc = Paths.get("dummy.orc");
         Path dummySco = Paths.get("dummy.sco");
@@ -72,10 +92,11 @@ class GranulatorServiceTest {
         granulatorService.performGranulationFake(fakeCs, dummyOrc, dummySco, null);
 
         // THEN
+        // Wir verwenden granulatorService.isRunning() für die eigentliche Assertions
         assertTrue(granulatorService.isRunning(), "isRunning should remain true when already running");
 
         // Cleanup
-        isRunningField.setBoolean(granulatorService, false);
+        setRunningStatus(false);
     }
 
     @Test
@@ -478,7 +499,6 @@ class GranulatorServiceTest {
     }
 
 
-
     @Test
     @DisplayName("handleRealCsound (Offline): Calls performGranulation synchronously and cleans up")
     void handleRealCsound_offline_callsPerformGranulationDirectly() throws Exception {
@@ -493,8 +513,7 @@ class GranulatorServiceTest {
 
         doCallRealMethod().when(granulatorService).cleanupCsound();
 
-        Field isRunningField = GranulatorService.class.getDeclaredField("isRunning");
-        isRunningField.setAccessible(true);
+        // Field isRunningField Deklaration entfernt
 
         // WHEN
         String result = granulatorService.handleRealCsound(
@@ -504,7 +523,7 @@ class GranulatorServiceTest {
         assertEquals("Crazification finished!", result,
                 "Should return 'Crazification finished!'.");
 
-        assertFalse(isRunningField.getBoolean(granulatorService),
+        assertFalse(getRunningStatus(),
                 "isRunning should be false after completion, since cleanupCsound was called.");
 
         verify(granulatorService, times(1)).performGranulation(
@@ -533,8 +552,7 @@ class GranulatorServiceTest {
 
         doCallRealMethod().when(granulatorService).cleanupCsound();
 
-        Field isRunningField = GranulatorService.class.getDeclaredField("isRunning");
-        isRunningField.setAccessible(true);
+        // Field isRunningField Deklaration entfernt
 
         // WHEN
         long startTime = System.currentTimeMillis();
@@ -549,7 +567,7 @@ class GranulatorServiceTest {
         assertTrue(endTime - startTime < 50,
                 "The return should take place immediately, as granulation is started asynchronously.");
 
-        assertTrue(isRunningField.getBoolean(granulatorService),
+        assertTrue(getRunningStatus(),
                 "isRunning should be true because the live thread is currently running.");
 
         assertTrue(latch.await(5, TimeUnit.SECONDS), "The granulation thread should be completed within the time frame.");
@@ -561,7 +579,7 @@ class GranulatorServiceTest {
 
         verify(mockFileManager, never()).cleanupSaveInputFiles(any());
 
-        assertFalse(isRunningField.getBoolean(granulatorService),
+        assertFalse(getRunningStatus(),
                 "isRunning should be false after the live thread has finished and cleanup has been performed.");
     }
 
@@ -581,8 +599,7 @@ class GranulatorServiceTest {
 
         doCallRealMethod().when(granulatorService).cleanupCsound();
 
-        Field isRunningField = GranulatorService.class.getDeclaredField("isRunning");
-        isRunningField.setAccessible(true);
+        // Field isRunningField Deklaration entfernt
 
         // WHEN + THEN
         IOException ex = assertThrows(IOException.class, () ->
@@ -596,7 +613,7 @@ class GranulatorServiceTest {
 
         verify(mockFileManager, times(1)).cleanupSaveInputFiles(dummySco);
 
-        assertFalse(isRunningField.getBoolean(granulatorService),
+        assertFalse(getRunningStatus(),
                 "isRunning should be reset to false after the error and cleanup.");
 
         verify(granulatorService, times(1)).performGranulation(
@@ -612,9 +629,8 @@ class GranulatorServiceTest {
         Path dummyOutput = Paths.get("output.wav");
         FakeCsound fakeCsound = new FakeCsound();
 
-        Field isRunningField = GranulatorService.class.getDeclaredField("isRunning");
-        isRunningField.setAccessible(true);
-        isRunningField.setBoolean(granulatorService, false);
+        // Field isRunningField Deklaration entfernt
+        setRunningStatus(false);
 
         // WHEN
         String result = granulatorService.handleFakeCsound(
@@ -624,7 +640,7 @@ class GranulatorServiceTest {
         assertEquals("Fake Crazification completed!", result,
                 "The success string should be returned.");
 
-        assertFalse(isRunningField.getBoolean(granulatorService),
+        assertFalse(getRunningStatus(),
                 "isRunning should be false again after completion.");
 
         Mockito.verify(granulatorService, Mockito.times(1)).performGranulationFake(
@@ -645,9 +661,8 @@ class GranulatorServiceTest {
                 .when(granulatorService).performGranulationFake(
                         Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
 
-        Field isRunningField = GranulatorService.class.getDeclaredField("isRunning");
-        isRunningField.setAccessible(true);
-        isRunningField.setBoolean(granulatorService, false);
+        // Field isRunningField Deklaration entfernt
+        setRunningStatus(false);
 
         // WHEN
         IOException ex = assertThrows(IOException.class, () ->
@@ -658,7 +673,7 @@ class GranulatorServiceTest {
         assertEquals(expectedErrorMessage, ex.getMessage(),
                 "The original exception should be propagated.");
 
-        assertFalse(isRunningField.getBoolean(granulatorService),
+        assertFalse(getRunningStatus(),
                 "isRunning should be reset to false after the exception in the finally block.");
 
         Mockito.verify(granulatorService, Mockito.times(1)).performGranulationFake(
@@ -671,9 +686,8 @@ class GranulatorServiceTest {
         // GIVEN
         Csound mockCsound = Mockito.mock(Csound.class);
 
-        Field isRunningField = GranulatorService.class.getDeclaredField("isRunning");
-        isRunningField.setAccessible(true);
-        isRunningField.setBoolean(granulatorService, true);
+        // Field isRunningField Deklaration entfernt
+        setRunningStatus(true);
 
         Field currentCsoundField = GranulatorService.class.getDeclaredField("currentCsound");
         currentCsoundField.setAccessible(true);
@@ -685,7 +699,7 @@ class GranulatorServiceTest {
         granulatorService.stopGranulation();
 
         // THEN
-        assertFalse(isRunningField.getBoolean(granulatorService),
+        assertFalse(getRunningStatus(),
                 "isRunning must be set to false to stop the thread.");
 
         assertEquals(mockCsound, currentCsoundField.get(granulatorService),
@@ -698,9 +712,8 @@ class GranulatorServiceTest {
     @DisplayName("stopGranulation: Does nothing and is safe when no Csound is active")
     void stopGranulation_safeWhenNotRunning() throws Exception {
         // GIVEN
-        Field isRunningField = GranulatorService.class.getDeclaredField("isRunning");
-        isRunningField.setAccessible(true);
-        isRunningField.setBoolean(granulatorService, false);
+        // Field isRunningField Deklaration entfernt
+        setRunningStatus(false);
 
         Field currentCsoundField = GranulatorService.class.getDeclaredField("currentCsound");
         currentCsoundField.setAccessible(true);
@@ -710,7 +723,7 @@ class GranulatorServiceTest {
         granulatorService.stopGranulation();
 
         // THEN
-        assertFalse(isRunningField.getBoolean(granulatorService),
+        assertFalse(getRunningStatus(),
                 "isRunning should remain false.");
 
         assertNull(currentCsoundField.get(granulatorService),
@@ -821,7 +834,8 @@ class GranulatorServiceTest {
             mockedFiles.when(() -> Files.readString(orcPath)).thenReturn("live ORC");
             mockedFiles.when(() -> Files.readString(scoPath)).thenReturn("live SCO");
 
-            mockedFiles.when(() -> Files.createDirectories(eq(expectedParentDir))).thenReturn(expectedParentDir); // <-- HINZUGEFÜGT
+            // Dies simuliert, dass das Verzeichnis existiert oder erstellt wird, was für Live-Modus in manchen Kontexten erforderlich sein kann
+            mockedFiles.when(() -> Files.createDirectories(eq(expectedParentDir))).thenReturn(expectedParentDir);
 
             String adjustedOrc = "adjusted live ORC";
             String injectedOrc = "injected live ORC";
@@ -841,6 +855,7 @@ class GranulatorServiceTest {
             // THEN
             mockedFiles.verify(() -> Files.createTempDirectory(anyString()), never());
 
+            // Überprüfung der Verzeichnis-Erstellung (kann je nach tatsächlicher Implementierung variieren)
             mockedFiles.verify(() -> Files.createDirectories(eq(expectedParentDir)), times(1));
 
             verify(mockFileManager, times(1)).ensureValidWav(outputPath);
@@ -868,7 +883,7 @@ class GranulatorServiceTest {
         when(mockCsound.ReadScore(anyString())).thenReturn(0);
         when(mockCsound.Start()).thenReturn(0);
 
-        doNothing().when(mockConfigurator).configureCsound(any(), anyBoolean(), any(), anyInt());
+        doNothing().when(mockConfigurator).configureCsound(any(), anyBoolean(), any());
 
         // WHEN
         granulatorService.configureAndCompileCsound(
@@ -876,7 +891,7 @@ class GranulatorServiceTest {
 
         // THEN
         verify(mockConfigurator, times(1)).configureCsound(
-                mockCsound, false, outputPath, sampleRate);
+                mockCsound, false, outputPath);
 
         verify(mockCsound, times(1)).SetGlobalEnv("RAWADDF", "1");
 
@@ -900,7 +915,7 @@ class GranulatorServiceTest {
         when(mockCsound.ReadScore(anyString())).thenReturn(0);
         when(mockCsound.Start()).thenReturn(0);
 
-        doNothing().when(mockConfigurator).configureCsound(any(), anyBoolean(), isNull(), anyInt());
+        doNothing().when(mockConfigurator).configureCsound(any(), anyBoolean(), isNull());
 
         // WHEN
         granulatorService.configureAndCompileCsound(
@@ -908,7 +923,7 @@ class GranulatorServiceTest {
 
         // THEN
         verify(mockConfigurator, times(1)).configureCsound(
-                eq(mockCsound), eq(true), isNull(), eq(sampleRate));
+                eq(mockCsound), eq(true), isNull());
 
         verify(mockCsound, times(1)).SetGlobalEnv("RAWADDF", "1");
 
@@ -936,7 +951,7 @@ class GranulatorServiceTest {
         when(mockCsound.ReadScore(anyString())).thenReturn(readScoreResult);
         when(mockCsound.Start()).thenReturn(startResult);
 
-        doNothing().when(mockConfigurator).configureCsound(any(), anyBoolean(), any(), anyInt());
+        doNothing().when(mockConfigurator).configureCsound(any(), anyBoolean(), any());
 
         // WHEN + THEN
         IOException ex = assertThrows(IOException.class, () ->
@@ -972,9 +987,8 @@ class GranulatorServiceTest {
                 .thenReturn(0) // Iteration 3
                 .thenReturn(1); // Termination
 
-        Field isRunningField = GranulatorService.class.getDeclaredField("isRunning");
-        isRunningField.setAccessible(true);
-        isRunningField.setBoolean(granulatorService, true);
+        // Field isRunningField Deklaration entfernt
+        setRunningStatus(true);
 
         // WHEN
         granulatorService.performLoop(mockCsound, sampleRate);
@@ -982,10 +996,10 @@ class GranulatorServiceTest {
         // THEN
         verify(mockCsound, times(4)).PerformKsmps();
 
-        assertTrue(isRunningField.getBoolean(granulatorService),
+        assertTrue(getRunningStatus(),
                 "isRunning should still be true if Csound completed normally.");
 
-        isRunningField.setBoolean(granulatorService, false);
+        setRunningStatus(false);
     }
 
     @Test
@@ -1000,16 +1014,14 @@ class GranulatorServiceTest {
         when(mockCsound.PerformKsmps()).thenAnswer(invocation -> {
             callCount[0]++;
             if (callCount[0] >= 5) {
-                Field isRunningField = GranulatorService.class.getDeclaredField("isRunning");
-                isRunningField.setAccessible(true);
-                isRunningField.setBoolean(granulatorService, false);
+                // Wir nutzen den Helper, um den Flag zu setzen
+                setRunningStatus(false);
             }
             return 0;
         });
 
-        Field isRunningField = GranulatorService.class.getDeclaredField("isRunning");
-        isRunningField.setAccessible(true);
-        isRunningField.setBoolean(granulatorService, true);
+        // Field isRunningField Deklaration entfernt
+        setRunningStatus(true);
 
         // WHEN
         granulatorService.performLoop(mockCsound, sampleRate);
@@ -1017,10 +1029,10 @@ class GranulatorServiceTest {
         // THEN
         verify(mockCsound, times(5)).PerformKsmps();
 
-        assertFalse(isRunningField.getBoolean(granulatorService),
+        assertFalse(getRunningStatus(),
                 "isRunning must be false after the loop terminates via user stop.");
 
-        isRunningField.setBoolean(granulatorService, false);
+        setRunningStatus(false);
     }
 
     @Test
@@ -1037,9 +1049,8 @@ class GranulatorServiceTest {
         Mockito.when(mockCsound.PerformKsmps())
                 .thenReturn(returns[0], Arrays.copyOfRange(returns, 1, returns.length));
 
-        Field isRunningField = GranulatorService.class.getDeclaredField("isRunning");
-        isRunningField.setAccessible(true);
-        isRunningField.setBoolean(granulatorService, true);
+        // Field isRunningField Deklaration entfernt
+        setRunningStatus(true);
 
         // WHEN
         granulatorService.performLoop(mockCsound, sampleRate);
@@ -1047,10 +1058,10 @@ class GranulatorServiceTest {
         // THEN
         verify(mockCsound, times(201)).PerformKsmps();
 
-        assertTrue(isRunningField.getBoolean(granulatorService),
+        assertTrue(getRunningStatus(),
                 "isRunning should remain true if Csound completed normally.");
 
-        isRunningField.setBoolean(granulatorService, false);
+        setRunningStatus(false);
     }
 
 
@@ -1067,9 +1078,8 @@ class GranulatorServiceTest {
         csoundField.setAccessible(true);
         csoundField.set(granulatorService, mockCsound);
 
-        Field isRunningField = GranulatorService.class.getDeclaredField("isRunning");
-        isRunningField.setAccessible(true);
-        isRunningField.setBoolean(granulatorService, true);
+        // Field isRunningField Deklaration entfernt
+        setRunningStatus(true);
 
         Field hrtfDirField = GranulatorService.class.getDeclaredField("currentHrtfTempDir");
         hrtfDirField.setAccessible(true);
@@ -1098,7 +1108,7 @@ class GranulatorServiceTest {
         verify(mockFileManager, times(1)).cleanupLiveInputFiles(mockAudioPath, mockScoPath);
 
         assertNull(csoundField.get(granulatorService), "currentCsound must be set to null.");
-        assertFalse(isRunningField.getBoolean(granulatorService), "isRunning must be set to false.");
+        assertFalse(getRunningStatus(), "isRunning must be set to false.");
 
         assertNotNull(lastStopTimeField.get(granulatorService),
                 "lastStopTime must be updated.");
@@ -1119,9 +1129,8 @@ class GranulatorServiceTest {
         csoundField.setAccessible(true);
         csoundField.set(granulatorService, null);
 
-        Field isRunningField = GranulatorService.class.getDeclaredField("isRunning");
-        isRunningField.setAccessible(true);
-        isRunningField.setBoolean(granulatorService, true);
+        // Field isRunningField Deklaration entfernt
+        setRunningStatus(true);
 
         Field hrtfDirField = GranulatorService.class.getDeclaredField("currentHrtfTempDir");
         hrtfDirField.setAccessible(true);
@@ -1139,7 +1148,7 @@ class GranulatorServiceTest {
         verify(mockFileManager, times(1)).cleanupLiveInputFiles(isNull(), isNull());
 
         assertNull(csoundField.get(granulatorService), "currentCsound must remain null.");
-        assertFalse(isRunningField.getBoolean(granulatorService), "isRunning must be set to false.");
+        assertFalse(getRunningStatus(), "isRunning must be set to false.");
     }
 
     @Test

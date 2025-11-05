@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Getter
 @Service
@@ -18,7 +19,7 @@ public class GranulatorService {
     // ===========================
     // THREAD-SAFE STATUS FIELDS
     // ===========================
-    private volatile boolean isRunning = false;
+    private final AtomicBoolean isRunning = new AtomicBoolean(false);
     private volatile Csound currentCsound = null;
 
     // ===========================
@@ -47,7 +48,7 @@ public class GranulatorService {
     private final CsoundConfigurator csoundConfigurator;
     private final TemporaryFileManager fileManager;
 
-    public GranulatorService(CsoundConfigurator csoundConfigurator, TemporaryFileManager fileManager){
+    public GranulatorService(CsoundConfigurator csoundConfigurator, TemporaryFileManager fileManager) {
         this.csoundConfigurator = csoundConfigurator;
         this.fileManager = fileManager;
     }
@@ -55,6 +56,10 @@ public class GranulatorService {
     // ===========================
     // PUBLIC API
     // ===========================
+
+    public boolean isRunning() {
+        return isRunning.get();
+    }
 
     /**
      * Starts granulation (live or offline)
@@ -71,7 +76,7 @@ public class GranulatorService {
         }
 
         // Step 2: Check whether it is already running
-        if (isRunning) {
+        if (isRunning.get()) {
             logger.warn("Crazification is already running, new request rejected.");
             return "Crazification is already running!";
         }
@@ -97,9 +102,9 @@ public class GranulatorService {
      * Stops the currently running granulation
      */
     public synchronized void stopGranulation() {
-        if (currentCsound != null && isRunning) {
+        if (currentCsound != null && isRunning.get()) {
             logger.info("Signal that the current crazification should be stopped...");
-            isRunning = false;
+            isRunning.set(false);
             // lastStopTime is set in cleanupCsound()
         } else {
             logger.info("No Crazification is currently running.");
@@ -109,6 +114,7 @@ public class GranulatorService {
     // ===========================
     // PROTECTED CORE METHODS
     // ===========================
+
     /**
      * Performs granulation using a real Csound instance
      */
@@ -133,7 +139,6 @@ public class GranulatorService {
             performLoop(csound, sampleRate);
 
         } catch (Exception e) {
-            logger.error("Error during granulation performance", e);
             throw new IOException("Crazification failed", e);
         } finally {
             // --- Step 4: Clean up temporary files ---
@@ -208,9 +213,9 @@ public class GranulatorService {
     }
 
     protected String handleRealCsound(Csound csound, Path orcPath, Path scoPath,
-                                    boolean outputLive, Path outputPath) throws IOException {
+                                      boolean outputLive, Path outputPath) throws IOException {
         currentCsound = csound;
-        isRunning = true;
+        isRunning.set(true);
 
         if (outputLive) {
             logger.info("Starting live Csound thread...");
@@ -237,12 +242,12 @@ public class GranulatorService {
     }
 
     protected String handleFakeCsound(FakeCsound fake, Path orcPath, Path scoPath, Path outputPath) throws IOException {
-        isRunning = true;
+        isRunning.set(true);
         try {
             performGranulationFake(fake, orcPath, scoPath, outputPath);
             return "Fake Crazification completed!";
         } finally {
-            isRunning = false;
+            isRunning.set(false);
         }
     }
 
@@ -286,8 +291,8 @@ public class GranulatorService {
     }
 
     protected void configureAndCompileCsound(Csound csound, String orc, String sco,
-                                           Path output, boolean outputLive, int sampleRate) throws IOException {
-        csoundConfigurator.configureCsound(csound, outputLive, output, sampleRate);
+                                             Path output, boolean outputLive, int sampleRate) throws IOException {
+        csoundConfigurator.configureCsound(csound, outputLive, output);
 
         csound.SetGlobalEnv("RAWADDF", "1");
         logger.info("Set Csound environment variable RAWADDF=1 (large GEN01 support).");
@@ -307,7 +312,7 @@ public class GranulatorService {
         logger.info("Start Crazification performance loop at {} Hz...", sampleRate);
         long iterationCount = 0;
 
-        while (csound.PerformKsmps() == 0 && isRunning) {
+        while (csound.PerformKsmps() == 0 && isRunning.get()) {
             iterationCount++;
 
             if (iterationCount % 50000 == 0)
@@ -317,7 +322,7 @@ public class GranulatorService {
                 Thread.yield();
         }
 
-        if (!isRunning)
+        if (!isRunning.get())
             logger.info("Crazification stopped by user after {} iterations", iterationCount);
         else
             logger.info("Crazification completed after {} iterations", iterationCount);
@@ -333,15 +338,16 @@ public class GranulatorService {
                 TimeUnit.MILLISECONDS.sleep(CLEANUP_FINALIZE_DELAY);
                 logger.info("Csound instance successfully cleaned up.");
             }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            logger.error("Cleanup interrupted while waiting for Csound finalization.", e);
         } catch (Exception e) {
             logger.error("Error cleaning up the Csound instance", e);
         } finally {
-            // Reset status
             currentCsound = null;
-            isRunning = false;
+            isRunning.set(false);
             lastStopTime = System.currentTimeMillis();
 
-            // Clean temporary files and reset paths
             fileManager.cleanupLiveInputFiles(currentLiveAudioPath, currentLiveScoPath);
             fileManager.cleanupTempDirectory(currentHrtfTempDir);
 

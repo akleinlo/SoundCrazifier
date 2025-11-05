@@ -20,8 +20,8 @@ public class TemporaryFileManager {
 
     public void cleanupTempDirectory(Path tempDir) {
         if (tempDir != null) {
-            try {
-                Files.walk(tempDir)
+            try (java.util.stream.Stream<Path> pathStream = Files.walk(tempDir)) {
+                pathStream
                         .sorted(Comparator.reverseOrder()) // Delete files before directories
                         .forEach(path -> {
                             try {
