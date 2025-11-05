@@ -19,7 +19,7 @@ public class CsoundConfigurator {
     /**
      * Configures Csound for live playback or file rendering.
      */
-    public void configureCsound(Csound csound, boolean outputLive, Path effectiveOutput, int sampleRate) {
+    public void configureCsound(Csound csound, boolean outputLive, Path effectiveOutput) {
         if (outputLive) {
             csound.SetOption("-odac");
             csound.SetOption("-r44100");             // Live: 44.1 kHz
@@ -68,12 +68,11 @@ public class CsoundConfigurator {
 
             logger.info("HRTF files for {} Hz copied to temporary directory {}", sampleRate, tempDir);
         } catch (IOException e) {
-            logger.error("Error loading HRTF files for {} Hz", sampleRate, e);
             throw new IOException("HRTF files not found for " + sampleRate + " Hz", e);
         }
 
         String replacement = String.format(
-                "gS_HRTF_left  = \"%s\"\ngS_HRTF_right = \"%s\"",
+                "gS_HRTF_left  = \"%s\"%ngS_HRTF_right = \"%s\"",
                 leftTemp.toAbsolutePath(), rightTemp.toAbsolutePath());
 
         orcContent = orcContent.replaceFirst(

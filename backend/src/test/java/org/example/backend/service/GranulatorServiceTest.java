@@ -868,7 +868,7 @@ class GranulatorServiceTest {
         when(mockCsound.ReadScore(anyString())).thenReturn(0);
         when(mockCsound.Start()).thenReturn(0);
 
-        doNothing().when(mockConfigurator).configureCsound(any(), anyBoolean(), any(), anyInt());
+        doNothing().when(mockConfigurator).configureCsound(any(), anyBoolean(), any());
 
         // WHEN
         granulatorService.configureAndCompileCsound(
@@ -876,7 +876,7 @@ class GranulatorServiceTest {
 
         // THEN
         verify(mockConfigurator, times(1)).configureCsound(
-                mockCsound, false, outputPath, sampleRate);
+                mockCsound, false, outputPath);
 
         verify(mockCsound, times(1)).SetGlobalEnv("RAWADDF", "1");
 
@@ -900,7 +900,7 @@ class GranulatorServiceTest {
         when(mockCsound.ReadScore(anyString())).thenReturn(0);
         when(mockCsound.Start()).thenReturn(0);
 
-        doNothing().when(mockConfigurator).configureCsound(any(), anyBoolean(), isNull(), anyInt());
+        doNothing().when(mockConfigurator).configureCsound(any(), anyBoolean(), isNull());
 
         // WHEN
         granulatorService.configureAndCompileCsound(
@@ -908,7 +908,7 @@ class GranulatorServiceTest {
 
         // THEN
         verify(mockConfigurator, times(1)).configureCsound(
-                eq(mockCsound), eq(true), isNull(), eq(sampleRate));
+                eq(mockCsound), eq(true), isNull());
 
         verify(mockCsound, times(1)).SetGlobalEnv("RAWADDF", "1");
 
@@ -936,7 +936,7 @@ class GranulatorServiceTest {
         when(mockCsound.ReadScore(anyString())).thenReturn(readScoreResult);
         when(mockCsound.Start()).thenReturn(startResult);
 
-        doNothing().when(mockConfigurator).configureCsound(any(), anyBoolean(), any(), anyInt());
+        doNothing().when(mockConfigurator).configureCsound(any(), anyBoolean(), any());
 
         // WHEN + THEN
         IOException ex = assertThrows(IOException.class, () ->

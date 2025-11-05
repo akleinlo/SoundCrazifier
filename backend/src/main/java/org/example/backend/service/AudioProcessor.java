@@ -2,6 +2,7 @@ package org.example.backend.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -10,6 +11,12 @@ import java.nio.file.Path;
 
 @Component
 public class AudioProcessor {
+
+    private final String soxExecutablePath;
+
+    public AudioProcessor(@Value("${audio.sox.path:sox}") String soxExecutablePath) {
+        this.soxExecutablePath = soxExecutablePath;
+    }
 
     private static final Logger logger = LoggerFactory.getLogger(AudioProcessor.class);
 
@@ -27,7 +34,7 @@ public class AudioProcessor {
                 inputPath.getFileName(), targetSampleRate);
 
         ProcessBuilder pb = new ProcessBuilder(
-                "sox",
+                soxExecutablePath,
                 inputPath.toString(),
                 "-r", String.valueOf(targetSampleRate),
                 resampledPath.toString(),
