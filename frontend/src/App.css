@@ -1,8 +1,6 @@
 #root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  width: 100%;
+    min-height: 100vh;
 }
 
 .logo {
@@ -40,3 +38,85 @@
 .read-the-docs {
   color: #888;
 }
+
+.logo-header {
+    background-image: url('./assets/logo.png');
+
+    background-repeat: no-repeat;
+    background-size: contain;
+    background-position: center;
+
+    width: 300px;
+    height: 150px;
+    margin: 2rem auto 0;
+}
+
+h1, h2 {
+    text-align: center;
+}
+
+.page-wide {
+    max-width: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 2rem 4rem 4rem;
+}
+
+.gui-section {
+    background: rgba(255, 255, 255, 0.06);
+    padding: 3.5rem;
+    border-radius: 14px;
+
+    margin-bottom: 3rem;
+
+    font-size: 1.1rem;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2rem;
+}
+
+
+input[type="range"] {
+    width: 100%;
+    height: 14px;
+    margin-top: 1rem;
+}
+
+button {
+    padding: 1.2em 2em;
+    font-size: 1.2rem;
+    border-radius: 12px;
+}
+
+.navbar {
+    background-color: rgba(26, 26, 46, 0.9); /* dunkler, transparenter Hintergrund passend zum Gradient */
+    padding: 1rem 2rem;
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+}
+
+.navbar a {
+    color: #fff;
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.3s, text-shadow 0.3s;
+}
+
+.navbar a:hover {
+    color: #61dafb;
+    text-shadow: 0 0 6px #61dafb;
+}
+
+
+
+
+
+
+
+
+
+
+
