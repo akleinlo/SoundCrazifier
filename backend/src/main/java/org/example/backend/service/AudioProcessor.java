@@ -20,6 +20,11 @@ public class AudioProcessor {
 
     private static final Logger logger = LoggerFactory.getLogger(AudioProcessor.class);
 
+    protected ProcessBuilder createProcessBuilder(String... command) {
+        return new ProcessBuilder(command);
+    }
+
+
     /**
      * Resamples/converts any audio file to WAV format at the target sample rate using SoX.
      *
@@ -33,7 +38,7 @@ public class AudioProcessor {
         logger.info("Resampling/Converting {} to {} Hz WAV using SoX...",
                 inputPath.getFileName(), targetSampleRate);
 
-        ProcessBuilder pb = new ProcessBuilder(
+        ProcessBuilder pb = createProcessBuilder(
                 soxExecutablePath,
                 inputPath.toString(),
                 "-r", String.valueOf(targetSampleRate),

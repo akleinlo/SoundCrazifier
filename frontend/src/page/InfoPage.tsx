@@ -1,4 +1,8 @@
 export default function InfoPage() {
+    const handleHover = (e: React.SyntheticEvent<HTMLAnchorElement>, enter: boolean) => {
+        e.currentTarget.style.transform = enter ? "scale(1.05)" : "scale(1)";
+    };
+
     return (
         <div
             style={{
@@ -32,7 +36,20 @@ export default function InfoPage() {
                 <li>Sound files longer than 1 minute cannot be crazified.</li>
                 <li>A cooldown mechanism prevents rapid consecutive clicks on “Play” and “Stop”.</li>
                 <li>
-                    Explore the project and source code on <a href="https://github.com/akleinlo/SoundCrazifier" target="_blank" rel="noopener noreferrer">GitHub</a>.
+                    Explore the project and source code on{" "}
+                    <a
+                        href="https://github.com/akleinlo/SoundCrazifier"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        tabIndex={0}
+                        onMouseOver={(e) => handleHover(e, true)}
+                        onMouseOut={(e) => handleHover(e, false)}
+                        onFocus={(e) => handleHover(e, true)}
+                        onBlur={(e) => handleHover(e, false)}
+                        style={{ transition: "transform 0.2s", display: "inline-block" }}
+                    >
+                        GitHub
+                    </a>.
                 </li>
             </ul>
 
@@ -43,7 +60,34 @@ export default function InfoPage() {
                 passionate about experimental audio tools and granular sound manipulation.
             </p>
             <p style={{ marginBottom: "1rem" }}>
-                Visit my <a href="https://adriankleinlosen.com" target="_blank" rel="noopener noreferrer">website</a> or follow me on <a href="https://www.instagram.com/adriankleinlosen/" target="_blank" rel="noopener noreferrer">Instagram</a>.
+                Visit my{" "}
+                <a
+                    href="https://adriankleinlosen.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    tabIndex={0}
+                    onMouseOver={(e) => handleHover(e, true)}
+                    onMouseOut={(e) => handleHover(e, false)}
+                    onFocus={(e) => handleHover(e, true)}
+                    onBlur={(e) => handleHover(e, false)}
+                    style={{ transition: "transform 0.2s", display: "inline-block" }}
+                >
+                    website
+                </a>{" "}
+                or follow me on{" "}
+                <a
+                    href="https://www.instagram.com/adriankleinlosen/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    tabIndex={0}
+                    onMouseOver={(e) => handleHover(e, true)}
+                    onMouseOut={(e) => handleHover(e, false)}
+                    onFocus={(e) => handleHover(e, true)}
+                    onBlur={(e) => handleHover(e, false)}
+                    style={{ transition: "transform 0.2s", display: "inline-block" }}
+                >
+                    Instagram
+                </a>.
             </p>
 
             {/* Ko-fi Button */}
@@ -52,6 +96,11 @@ export default function InfoPage() {
                     href="https://ko-fi.com/adriankleinlosen"
                     target="_blank"
                     rel="noopener noreferrer"
+                    tabIndex={0}
+                    onMouseOver={(e) => handleHover(e, true)}
+                    onMouseOut={(e) => handleHover(e, false)}
+                    onFocus={(e) => handleHover(e, true)}
+                    onBlur={(e) => handleHover(e, false)}
                     style={{
                         display: "inline-block",
                         padding: "0.6em 1.2em",
@@ -63,8 +112,6 @@ export default function InfoPage() {
                         fontWeight: "bold",
                         transition: "transform 0.2s",
                     }}
-                    onMouseOver={(e) => (e.currentTarget.style.transform = "scale(1.05)")}
-                    onMouseOut={(e) => (e.currentTarget.style.transform = "scale(1)")}
                 >
                     Support me on Ko-fi ☕
                 </a>
