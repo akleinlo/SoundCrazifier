@@ -148,4 +148,24 @@ class AudioProcessorTest {
             assertTrue(ex.getMessage().contains("failed with exit code: 1"), "Error message should contain exit code.");
         }
     }
+
+    // Füge diesen Test zur Klasse AudioProcessorTest hinzu
+
+    @Test
+    @DisplayName("createProcessBuilder: Ensures wrapper method returns a real ProcessBuilder")
+    void createProcessBuilder_returnsRealInstance() {
+        // GIVEN
+        String[] expectedCommand = {
+                "/usr/bin/sox", "input.wav"
+        };
+
+        // WHEN
+        AudioProcessor realProcessor = new AudioProcessor("/dummy/sox");
+        ProcessBuilder pb = realProcessor.createProcessBuilder(expectedCommand);
+
+        // THEN
+        assertNotNull(pb, "Should return a non-null ProcessBuilder instance.");
+        assertEquals(List.of(expectedCommand), pb.command(),
+                "The ProcessBuilder command list should match the input array.");
+    }
 }
