@@ -92,7 +92,7 @@ public class TemporaryFileManager {
     public String getAudioPathFromSco(Path scoPath) {
         try {
             String scoContent = Files.readString(scoPath);
-            // Search for the line f 1 0.00 0.00 1.00 “/path/to/file.wav” ...
+            // Search for the line f1 0 0 1 “/path/to/file.wav” 0 0 0
             int start = scoContent.indexOf('"');
             int end = scoContent.lastIndexOf('"');
             if (start != -1 && end != -1 && end > start) {
