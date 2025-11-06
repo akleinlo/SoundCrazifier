@@ -1,18 +1,32 @@
 <p align="center">
-  <img src="frontend/src/assets/logo.png" alt="SoundCrazifier Logo" width="250"/>
+  <img src="frontend/src/assets/logo.png" alt="SoundCrazifier Logo" width="1000"/>
 </p>
 
-<h1 align="center">SoundCrazifier</h1>
-<h3 align="center">Audio Granulation Application with Csound</h3>
+<h2 align="center">Audio Granulation Application with Csound</h2>
+
+## 📊 Code Quality & CI
 
 <p align="center">
-  <a href="#"><img src="https://img.shields.io/badge/build-passing-brightgreen" alt="Build Status" height="25"/></a>&nbsp;
-  <a href="#"><img src="https://img.shields.io/badge/coverage-100%25-green" alt="Code Coverage" height="25"/></a>&nbsp;
+  <a href="https://github.com/akleinlo/SoundCrazifier/actions">
+    <img src="https://github.com/akleinlo/SoundCrazifier/actions/workflows/maven.yml/badge.svg" alt="Build Status" height="25"/>
+  </a>&nbsp;
+  <a href="https://sonarcloud.io/summary/new_code?id=akleinlo_SoundCrazifier_backend">
+    <img src="https://sonarcloud.io/api/project_badges/measure?project=akleinlo_SoundCrazifier_backend&metric=coverage" alt="Coverage" height="25"/>
+  </a>&nbsp;
   <a href="https://sonarcloud.io/summary/new_code?id=akleinlo_SoundCrazifier_backend">
     <img src="https://sonarcloud.io/api/project_badges/measure?project=akleinlo_SoundCrazifier_backend&metric=alert_status" alt="Quality Gate Status" height="25"/>
   </a>&nbsp;
-  <a href="https://github.com/akleinlo/SoundCrazifier/blob/main/LICENSE">
-    <img src="https://img.shields.io/badge/license-MIT-blue" alt="License" height="25"/>
+  <a href="https://sonarcloud.io/summary/new_code?id=akleinlo_SoundCrazifier_backend">
+    <img src="https://sonarcloud.io/api/project_badges/measure?project=akleinlo_SoundCrazifier_backend&metric=sqale_rating" alt="Maintainability Rating" height="25"/>
+  </a>&nbsp;
+  <a href="https://sonarcloud.io/summary/new_code?id=akleinlo_SoundCrazifier_backend">
+    <img src="https://sonarcloud.io/api/project_badges/measure?project=akleinlo_SoundCrazifier_backend&metric=reliability_rating" alt="Reliability Rating" height="25"/>
+  </a>&nbsp;
+  <a href="https://sonarcloud.io/summary/new_code?id=akleinlo_SoundCrazifier_backend">
+    <img src="https://sonarcloud.io/api/project_badges/measure?project=akleinlo_SoundCrazifier_backend&metric=security_rating" alt="Security Rating" height="25"/>
+  </a>&nbsp;
+  <a href="https://sonarcloud.io/summary/new_code?id=akleinlo_SoundCrazifier_backend">
+    <img src="https://sonarcloud.io/api/project_badges/measure?project=akleinlo_SoundCrazifier_backend&metric=vulnerabilities" alt="Vulnerabilities" height="25"/>
   </a>
 </p>
 
