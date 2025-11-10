@@ -120,7 +120,7 @@
                 <version>3.5.4</version>
                 <configuration>
                     <environmentVariables>
-                        <DYLD_LIBRARY_PATH>/opt/homebrew/Cellar/csound/6.18.1_11/lib</DYLD_LIBRARY_PATH>
+                        <DYLD_LIBRARY_PATH>/opt/homebrew/opt/csound/libexec</DYLD_LIBRARY_PATH>
                     </environmentVariables>
                 </configuration>
             </plugin>
@@ -137,6 +137,30 @@
                         </exclude>
                     </excludes>
                 </configuration>
+            </plugin>
+
+            <!-- Auto-install csound.jar to local Maven repo during build -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-install-plugin</artifactId>
+                <version>3.1.1</version>
+                <executions>
+                    <execution>
+                        <id>install-csound-jar</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>install-file</goal>
+                        </goals>
+                        <configuration>
+                            <file>${project.basedir}/lib/csound.jar</file>
+                            <groupId>org.csound</groupId>
+                            <artifactId>csound</artifactId>
+                            <version>6.18.1</version>
+                            <packaging>jar</packaging>
+                            <generatePom>true</generatePom>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
