@@ -112,17 +112,17 @@ public class GranulatorController {
             Files.deleteIfExists(tempAudio);
         }
 
-        // Level absichern (1–10)
+        // Secure level (1–10)
         int level = Math.max(1, Math.min(crazifyLevel, 10));
         String scoFilename = "csound/granular" + level + ".sco";
 
         Path scoResourcePath = new ClassPathResource(scoFilename).getFile().toPath();
         String scoContent = Files.readString(scoResourcePath, StandardCharsets.UTF_8);
 
-        // Ersetze Platzhalter durch Pfad der konvertierten WAV
+        // Replace placeholders with path of converted WAV
         scoContent = scoContent.replace("\"REPLACE_ME\"", "\"" + audioForCsound.toAbsolutePath() + "\"");
 
-        // Ersetze Dauer-Platzhalter REPLACE_ME_DURATION
+        // Replace duration placeholder REPLACE_ME_DURATION
         scoContent = scoContent.replace("REPLACE_ME_DURATION", String.valueOf(duration));
 
         Files.writeString(tempSco, scoContent, StandardCharsets.UTF_8);

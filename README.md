@@ -36,7 +36,6 @@ This repository contains the **SoundCrazifier application**, including a Spring 
 
 It provides a robust REST API for both **live audio playback** and **offline file generation**, dynamically selecting Csound orchestrations based on the requested "crazify level."
 
-
 ## ⚙️ Technology Stack
 
 | Component | Technology | Role |
@@ -69,23 +68,52 @@ The frontend utilizes `react-router-dom` for navigation between three main views
 
 ## 🛠️ System Prerequisites
 
-This application relies on two crucial external command-line tools:
+This application relies on two crucial external command-line tools.
 
-### Csound (Version 6.18 or higher)
+### ⚠️ Csound Version Compatibility Issue
 
-**Installation:**
+**CRITICAL:** The included Java Csound API (`csound.jar`) has compatibility issues with Homebrew's Csound **6.18.1_12** (revision 12) due to a `RAWADDF` environment variable bug introduced in recent Homebrew builds.
 
-- **macOS (Homebrew):**
-  ```bash
-  brew install csound
-  ```
-- **Linux (Ubuntu/Debian):**
-  ```bash
-  sudo apt-get update
-  sudo apt-get install csound libcsnd-dev
-  ```
-- **Windows / Manual:**  
-  Download from [csound.com/download](https://csound.com/download)
+**You MUST use Csound 6.18.1_11** (Homebrew revision 11) for this project to work correctly.
+
+#### macOS (Homebrew) - Install Legacy Version
+
+1. **Uninstall current version** (if already installed):
+   ```bash
+   brew uninstall csound
+   ```
+
+2. **Install from legacy tap**:
+   ```bash
+   brew tap akleinlo/csound-legacy
+   brew install akleinlo/csound-legacy/csound
+   ```
+
+3. **Verify installation**:
+   ```bash
+   csound --version
+   ```
+
+   You should see:
+   ```
+   --Csound version 6.18 (double samples) Nov 23 2022
+   [commit: a1580f9cdf331c35dceb486f4231871ce0b00266]
+   ```
+
+**Background:** The legacy tap repository is available at [github.com/akleinlo/homebrew-csound-legacy](https://github.com/akleinlo/homebrew-csound-legacy).
+
+#### Linux (Ubuntu/Debian)
+
+```bash
+sudo apt-get update
+sudo apt-get install csound libcsnd-dev
+```
+
+⚠️ Ensure the installed version is compatible with the Java API (version 6.18.x recommended).
+
+#### Windows / Manual
+
+Download from [csound.com/download](https://csound.com/download) and ensure you are using a compatible version (6.18.x) for Java API projects.
 
 ### SoX (Sound eXchange)
 
@@ -122,13 +150,26 @@ For correct execution in Linux environments (e.g., Ubuntu, Debian, CentOS), this
 export AUDIO_SOX_PATH="/usr/bin/sox"
 ```
 
+## 📦 Maven Dependency Setup
 
-### 📦 Csound Java API
+The Csound Java API (`org.csound:csound`) is not available in Maven Central and is included in `backend/lib/csound.jar`.
 
-The project includes `csound.jar` in `backend/lib/`.
+### Automatic Installation (Recommended)
 
-- **Running the application**: You can run the backend directly without installing the JAR into your Maven repository — the included `csound.jar` is sufficient.
-- **Building from source**: If you want to build the project yourself with Maven, install the JAR to your local Maven repository:
+The project's `pom.xml` is configured to automatically install `csound.jar` to your local Maven repository during the build process.
+
+Simply run:
+
+```bash
+cd backend
+mvn clean install
+```
+
+The JAR will be automatically installed to `~/.m2/repository/org/csound/csound/6.18.1/`.
+
+### Manual Installation (If Needed)
+
+If automatic installation fails or you prefer manual installation:
 
 ```bash
 mvn install:install-file \
@@ -137,18 +178,17 @@ mvn install:install-file \
   -DartifactId=csound \
   -Dversion=6.18.1 \
   -Dpackaging=jar
+```
 
-   ```
+### Verify Installation
 
-**Verify installation:**
-   ```bash
-   ls ~/.m2/repository/org/csound/csound/6.18.1/
-   ```
-You should see `csound-6.18.1.jar`.
+```bash
+ls ~/.m2/repository/org/csound/csound/6.18.1/
+```
+
+You should see `csound-6.18.1.jar` and `csound-6.18.1.pom`.
 
 **Note:** This is a **one-time setup** step. Once installed, Maven will use the cached version for all subsequent builds.
-
-**Alternative:** If using a custom Maven repository (e.g., GitHub Packages), configure repository access in your `pom.xml` and Maven `settings.xml`.
 
 ## 🚀 Getting Started (Local Setup)
 
@@ -158,7 +198,7 @@ To run the full application, you need to start both the Backend and the Frontend
 
 - Java SDK (17 or higher)
 - Apache Maven
-- Csound (installed and runnable)
+- Csound 6.18.1_11 (installed and runnable)
 - SoX (installed and runnable)
 - Node.js and npm (or yarn/pnpm)
 
@@ -167,18 +207,20 @@ To run the full application, you need to start both the Backend and the Frontend
 **Clone the Repository:**
 
 ```bash
-git clone [repository-url]
-cd backend
+git clone https://github.com/akleinlo/SoundCrazifier.git
+cd SoundCrazifier/backend
 ```
 
-**Build the Project:**  
-Ensure you have configured Maven access to the required GitHub package repository if necessary.
+**Build the Project:**
 
 ```bash
 mvn clean install
 ```
 
-**Run the Backend:**  
+This will automatically install the Csound JAR to your local Maven repository.
+
+**Run the Backend:**
+
 The application runs on the default Spring Boot port (8080).
 
 ```bash
@@ -187,7 +229,8 @@ mvn spring-boot:run
 
 ### 3. Frontend Setup (React/Vite)
 
-**Install Dependencies:**  
+**Install Dependencies:**
+
 Navigate to the frontend directory and install the Node modules.
 
 ```bash
@@ -195,14 +238,15 @@ cd ../frontend
 npm install
 ```
 
-**Run the Frontend:**  
+**Run the Frontend:**
+
 The development server runs on `http://localhost:5173` (as seen in the `application.properties` CORS setting).
 
 ```bash
 npm run dev
 ```
 
-### 📚 Csound Library Path Configuration (macOS/Linux)
+### 🔧 Csound Library Path Configuration (macOS/Linux)
 
 If you encounter issues initializing the Csound Java API (e.g., `UnsatisfiedLinkError`), you need to explicitly set the path to your native Csound library files.
 
@@ -255,33 +299,38 @@ To run the Spring Boot backend in IntelliJ IDEA:
 - **Build and run using**: Java `temurin-17`
 - **VM Options**:
   ```
-  -Djava.library.path=/opt/homebrew/opt/csound/libexec
+  -Djava.library.path=/opt/homebrew/Cellar/csound/6.18.1_11/libexec
   ```
-- **Environment Variable** (macOS):
+- **Environment Variables** (macOS):
   ```
-  DYLD_LIBRARY_PATH=/opt/homebrew/opt/csound/libexec
+  DYLD_LIBRARY_PATH=/opt/homebrew/Cellar/csound/6.18.1_11/libexec;RAWADDF=1
   ```
-- **Environment Variable** (Linux):
+- **Environment Variables** (Linux):
   ```
-  LD_LIBRARY_PATH=/usr/local/lib/csound6
+  LD_LIBRARY_PATH=/usr/local/lib/csound;RAWADDF=1
   ```
+
+⚠️ **Important:** The `RAWADDF=1` environment variable is **required** to work around the Homebrew Csound 6.18.1_11 compatibility issue with large audio files.
 
 #### 3. Running via Terminal / Maven
 
 **macOS:**
 ```bash
-export DYLD_LIBRARY_PATH=/opt/homebrew/opt/csound/libexec
+export DYLD_LIBRARY_PATH=/opt/homebrew/Cellar/csound/6.18.1_11/libexec
+export RAWADDF=1
 mvn spring-boot:run
 ```
 
 Or with VM options:
 ```bash
-mvn spring-boot:run -Djava.library.path=/opt/homebrew/opt/csound/libexec
+export RAWADDF=1
+mvn spring-boot:run -Djava.library.path=/opt/homebrew/Cellar/csound/6.18.1_11/libexec
 ```
 
 **Linux:**
 ```bash
-export LD_LIBRARY_PATH=/usr/local/lib/csound6
+export LD_LIBRARY_PATH=/usr/local/lib/csound
+export RAWADDF=1
 mvn spring-boot:run
 ```
 
