@@ -48,7 +48,8 @@ public class CsoundConfigurator {
     /**
      * Result object containing the updated ORC and the temporary HRTF directory.
      */
-    public record HrtfInjectionResult(String orcContent, Path tempDir) {}
+    public record HrtfInjectionResult(String orcContent, Path tempDir) {
+    }
 
     /**
      * Copies HRTF files to a temporary directory and injects their paths into the ORC.

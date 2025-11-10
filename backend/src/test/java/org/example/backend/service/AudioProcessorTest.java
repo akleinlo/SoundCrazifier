@@ -149,7 +149,6 @@ class AudioProcessorTest {
         }
     }
 
-    // Füge diesen Test zur Klasse AudioProcessorTest hinzu
 
     @Test
     @DisplayName("createProcessBuilder: Ensures wrapper method returns a real ProcessBuilder")

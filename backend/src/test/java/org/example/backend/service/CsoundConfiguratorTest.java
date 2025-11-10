@@ -109,10 +109,10 @@ class CsoundConfiguratorTest {
         // GIVEN
         int sampleRate = 44100;
         String originalOrc = """
-        gS_HRTF_left  = "OLD_LEFT.dat"
-        gS_HRTF_right = "OLD_RIGHT.dat"
-        instr 1 ...
-        """;
+                gS_HRTF_left  = "OLD_LEFT.dat"
+                gS_HRTF_right = "OLD_RIGHT.dat"
+                instr 1 ...
+                """;
 
         Path mockTempDir = Paths.get("/mock/temp/csound-hrtf-123");
 

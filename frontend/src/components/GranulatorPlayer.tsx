@@ -1,38 +1,121 @@
-import React, {useState} from "react";
+import React, {useState, useEffect, useRef} from "react";
 import axios from "axios";
 import styles from "../css/GranulatorPlayer.module.css";
 
+const MAX_ABSOLUTE_DURATION = 60;
+
+const FileIcon = () => <span>📁</span>;
+const PlayIcon = () => <span>▶️</span>;
+const SaveIcon = () => <span>💾</span>;
+const StopIcon = () => <span>🛑</span>;
 
 export default function GranulatorPlayer() {
     const [file, setFile] = useState<File | null>(null);
     const [filename, setFilename] = useState("");
-    const [duration, setDuration] = useState(20); // default 20s
-    const [newDuration, setNewDuration] = useState(duration);
+
+    const [fileDuration, setFileDuration] = useState(0);
+    const [newDurationInput, setNewDurationInput] = useState(0);
+    const [cSoundDuration, setCSoundDuration] = useState(0);
+
     const [isCrazifying, setIsCrazifying] = useState(false);
-    const [crazifyLevel, setCrazifyLevel] = useState(5); // Default Level 5
+    const [crazifyLevel, setCrazifyLevel] = useState(5);
+    const [durationError, setDurationError] = useState<string | null>(null);
 
+    const playTimeoutRef = useRef<number | null>(null);
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const maxAllowedInput = MAX_ABSOLUTE_DURATION;
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const firstFile = e.target.files?.[0];
-        if (firstFile) {
-            setFile(firstFile);
-            setFilename(firstFile.name.replace(".wav", "-crazified.wav"));
+        if (!firstFile) return;
 
-            // Duration of Soundfile
-            const audio = new Audio(URL.createObjectURL(firstFile));
-            audio.addEventListener("loadedmetadata", () => {
-                const fileDuration = parseFloat(audio.duration.toFixed(3));
-                setDuration(fileDuration);
-                setNewDuration(fileDuration);
-            });
+        if (e.target.files) {
+            e.target.value = '';
+        }
+
+        setFile(firstFile);
+        setFilename(firstFile.name.replace(/\.[^/.]+$/, "") + "-crazified.wav");
+
+        setFileDuration(0);
+        setCSoundDuration(0);
+        setNewDurationInput(0);
+        setDurationError(null);
+
+        const formData = new FormData();
+        formData.append("audioFile", firstFile);
+
+        try {
+            const response = await axios.post("http://localhost:8080/crazifier/getDuration", formData);
+            const durationFromBackend = response.data as number;
+            const fileDuration = parseFloat(durationFromBackend.toFixed(3));
+
+            if (fileDuration > MAX_ABSOLUTE_DURATION) {
+                setDurationError(
+                    `File too long (${fileDuration.toFixed(2)}s). Max. ${MAX_ABSOLUTE_DURATION}s allowed.`
+                );
+                setFileDuration(fileDuration);
+                setCSoundDuration(0);
+                setNewDurationInput(fileDuration);
+                return;
+            }
+
+            if (fileDuration <= 0) {
+                setDurationError("Error: Could not read a valid duration from the file.");
+                setFileDuration(0);
+                setCSoundDuration(0);
+                setNewDurationInput(0);
+                return;
+            }
+
+            setDurationError(null);
+            setFileDuration(fileDuration);
+            setCSoundDuration(fileDuration);
+            setNewDurationInput(fileDuration);
+
+        } catch (err: unknown) {
+            console.error("Error getting file duration:", err);
+
+            let errorMessage = "Unknown error reading duration (network or backend).";
+
+            if (axios.isAxiosError(err) && err.response) {
+                const data = err.response.data;
+                if (typeof data === 'string') {
+                    errorMessage = `Duration reading error: ${data}`;
+                } else if (err.response.status) {
+                    errorMessage = `Duration reading error (Status: ${err.response.status})`;
+                }
+            } else if (err instanceof Error) {
+                errorMessage = `Network/connection error: ${err.message}`;
+            }
+
+            setDurationError(errorMessage);
+            setFileDuration(0);
+            setCSoundDuration(0);
+            setNewDurationInput(0);
         }
     };
 
+    const handleUpdateDuration = () => {
+        const desiredInput = parseFloat(newDurationInput.toFixed(3));
+        const validatedDuration = Math.min(Math.max(1, desiredInput), maxAllowedInput);
+
+        setDurationError(null);
+
+        setNewDurationInput(validatedDuration);
+        setCSoundDuration(validatedDuration);
+    };
+
     const handlePlay = async () => {
-        if (!file) return;
+        if (!file || cSoundDuration <= 0 || durationError !== null) return;
+
+        if (playTimeoutRef.current) {
+            clearTimeout(playTimeoutRef.current);
+            playTimeoutRef.current = null;
+        }
+
         const formData = new FormData();
         formData.append("audioFile", file);
-        formData.append("duration", duration.toString());
+        formData.append("duration", cSoundDuration.toString());
         formData.append("crazifyLevel", crazifyLevel.toString());
 
         setIsCrazifying(true);
@@ -40,18 +123,25 @@ export default function GranulatorPlayer() {
             await axios.post("http://localhost:8080/crazifier/play", formData, {
                 headers: {"Content-Type": "multipart/form-data"},
             });
+
+            playTimeoutRef.current = window.setTimeout(() => {
+                setIsCrazifying(false);
+                playTimeoutRef.current = null;
+            }, cSoundDuration * 1000) as unknown as number;
+
         } catch (err) {
             console.error("Error playing file:", err);
-        } finally {
             setIsCrazifying(false);
+            playTimeoutRef.current = null;
         }
     };
 
     const handleSave = async () => {
-        if (!file) return;
+        if (!file || cSoundDuration <= 0 || durationError !== null) return;
+
         const formData = new FormData();
         formData.append("audioFile", file);
-        formData.append("duration", duration.toString());
+        formData.append("duration", cSoundDuration.toString());
         formData.append("crazifyLevel", crazifyLevel.toString());
 
         setIsCrazifying(true);
@@ -65,7 +155,6 @@ export default function GranulatorPlayer() {
                     params: {outputPath: filename},
                 }
             );
-
             const url = URL.createObjectURL(response.data);
             const link = document.createElement("a");
             link.href = url;
@@ -81,207 +170,180 @@ export default function GranulatorPlayer() {
     const handleStop = async () => {
         if (!file) return;
 
-        setIsCrazifying(false); // turn off spinner immediately
+        if (playTimeoutRef.current) {
+            clearTimeout(playTimeoutRef.current);
+            playTimeoutRef.current = null;
+        }
+
         try {
             await axios.post("http://localhost:8080/crazifier/stop");
             console.log("Crazification stopped.");
         } catch (err) {
             console.error("Error stopping granulation:", err);
+        } finally {
+            setIsCrazifying(false);
         }
     };
 
+    const isInputInvalid = newDurationInput <= 0 || newDurationInput > maxAllowedInput;
+    const isOverFileLength = cSoundDuration > fileDuration && fileDuration > 0;
+
+    useEffect(() => {
+        return () => {
+            if (playTimeoutRef.current) {
+                clearTimeout(playTimeoutRef.current);
+            }
+            if (file) {
+                axios.post("http://localhost:8080/crazifier/stop").catch(err => {
+                    console.error("Error stopping granulation on unmount:", err);
+                });
+            }
+        };
+    }, [file]);
 
     return (
-        <div
-            style={{
-                padding: "2rem",
-                fontFamily: "sans-serif",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: "1.5rem",
-            }}
-        >
-            {/* Choose File */}
-            <div>
-                <label
-                    htmlFor="fileInput"
-                    style={{
-                        cursor: "pointer",
-                        padding: "0.5rem 1rem",
-                        backgroundColor: "#000",
-                        color: "#fff",
-                        borderRadius: "4px",
-                        fontWeight: "bold",
-                    }}
-                >
-                    Choose File
+        <div className={styles.playerContainer}>
+            <div className={styles.fileSection}>
+                <label htmlFor="fileInput" className={styles.fileLabel}>
+                    <FileIcon/> {file ? "Change File" : "Upload Audio File"}
                 </label>
                 <input
                     id="fileInput"
                     type="file"
                     accept="audio/*"
                     onChange={handleFileChange}
-                    style={{ display: "none" }}
+                    style={{display: "none"}}
                 />
-                {file && <span style={{ marginLeft: "1rem" }}>{file.name}</span>}
+                <span className={styles.fileStatus}>
+                    {file ? `${file.name} (Length: ${fileDuration.toFixed(2)}s)` : "No file selected."}
+                </span>
             </div>
 
-            {/* 🎛️ Crazification Level */}
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <label>
-                    Crazification Level:
-                    <select
-                        value={crazifyLevel}
-                        onChange={(e) => setCrazifyLevel(parseInt(e.target.value))}
-                        style={{ marginLeft: "0.5rem", padding: "0.25rem" }}
-                    >
-                        {[...Array(10)].map((_, i) => (
-                            <option key={i + 1} value={i + 1}>
-                                Level {i + 1}
-                            </option>
-                        ))}
-                    </select>
-                </label>
-            </div>
-
-            {/* Optional visuelles Feedback */}
-            <div
-                style={{
-                    width: "200px",
-                    height: "10px",
-                    background: `linear-gradient(to right, #00f, #f0f ${crazifyLevel * 10}%)`,
-                    borderRadius: "5px",
-                }}
-            />
-
-            {/* Duration */}
-            {file && (
-                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                    <label>
-                        Duration (seconds):
-                        <input
-                            type="number"
-                            min={1}
-                            step={0.01}
-                            value={newDuration}
-                            onChange={(e) =>
-                                setNewDuration(parseFloat(e.target.value.replace(",", ".")))
-                            }
-                            style={{
-                                marginLeft: "0.5rem",
-                                padding: "0.25rem",
-                                width: "80px",
-                            }}
-                        />
+            <div className={styles.controlsGrid}>
+                <div className={styles.controlGroup}>
+                    <label className={styles.controlLabel}>
+                        Crazify Level: <span>{crazifyLevel}</span>
                     </label>
-                    <button
-                        onClick={() => setDuration(newDuration)}
-                        style={{
-                            padding: "0.25rem 0.5rem",
-                            backgroundColor: "#333",
-                            color: "#fff",
-                            borderRadius: "4px",
-                            cursor: "pointer",
-                        }}
-                    >
-                        Update
-                    </button>
+                    <input
+                        type="range"
+                        min="1"
+                        max="10"
+                        value={crazifyLevel}
+                        onChange={(e) =>
+                            setCrazifyLevel(parseInt(e.target.value))
+                        }
+                        className={styles.levelSlider}
+                    />
                 </div>
-            )}
 
-            {/* Play / Save / Stop */}
-            <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-                <button
-                    onClick={handlePlay}
-                    style={{
-                        padding: "0.5rem 1rem",
-                        backgroundColor: "#000",
-                        color: "#fff",
-                        border: "none",
-                        borderRadius: "4px",
-                        cursor: "pointer",
-                        fontWeight: "bold",
-                    }}
-                >
-                    Play
-                </button>
+                {file && (
+                    <div className={styles.controlGroup}>
+                        <label className={styles.controlLabel}>
+                            Duration (Max Input {maxAllowedInput}s):
+                        </label>
+                        <div className={styles.durationInputGroup}>
+                            <input
+                                type="number"
+                                min={1}
+                                max={maxAllowedInput}
+                                step={0.01}
+                                value={newDurationInput}
+                                onChange={(e) => {
+                                    const val = parseFloat(e.target.value);
+                                    setNewDurationInput(isNaN(val) ? 0 : val);
+                                }}
+                                className={styles.durationInput}
+                                disabled={durationError !== null}
+                            />
+                            <button
+                                onClick={handleUpdateDuration}
+                                disabled={isInputInvalid || cSoundDuration === newDurationInput || durationError !== null}
+                                className={styles.updateButton}
+                            >
+                                SET
+                            </button>
+                        </div>
 
-                <button
-                    onClick={handleSave}
-                    style={{
-                        padding: "0.5rem 1rem",
-                        backgroundColor: "#000",
-                        color: "#fff",
-                        border: "none",
-                        borderRadius: "4px",
-                        cursor: "pointer",
-                        fontWeight: "bold",
-                    }}
-                >
-                    Save
-                </button>
+                        {durationError && (
+                            <span className={styles.warningText} style={{color: '#ffaa00'}}>
+                                **Error:** {durationError}
+                            </span>
+                        )}
+                        {isInputInvalid && !durationError && (
+                            <span className={styles.warningText}>
+                                **Error:** Max. duration is {maxAllowedInput}s.
+                            </span>
+                        )}
 
-                <button
-                    onClick={handleStop}
-                    style={{
-                        padding: "0.5rem 1rem",
-                        backgroundColor: "#900",
-                        color: "#fff",
-                        border: "none",
-                        borderRadius: "4px",
-                        cursor: "pointer",
-                        fontWeight: "bold",
-                    }}
-                >
-                    Stop
-                </button>
-
-                {isCrazifying && (
-                    <div className={styles.crazifyingContainer}>
-                        <div className={styles.crazifyingSpinner} />
-                        <span>Crazifying...</span>
+                        {isOverFileLength && !isInputInvalid && !durationError && (
+                            <span className={styles.warningText} style={{color: 'orange'}}>
+                                {`**Note:** Granulation is looping because ${cSoundDuration.toFixed(2)}s > ${fileDuration.toFixed(2)}s.`}
+                            </span>
+                        )}
                     </div>
                 )}
             </div>
 
-            {/* Save as input */}
+            <div className={styles.actionButtons}>
+                <button
+                    onClick={handlePlay}
+                    className={styles.playButton}
+                    disabled={!file || isCrazifying || cSoundDuration <= 0 || durationError !== null}
+                >
+                    <PlayIcon/> PLAY LIVE
+                </button>
+                <button
+                    onClick={handleSave}
+                    className={styles.saveButton}
+                    disabled={!file || isCrazifying || cSoundDuration <= 0 || durationError !== null}
+                >
+                    <SaveIcon/> SAVE OFFLINE
+                </button>
+                <button
+                    onClick={handleStop}
+                    className={styles.stopButton}
+                    disabled={!isCrazifying}
+                >
+                    <StopIcon/> STOP
+                </button>
+            </div>
+
+            <div className={styles.outputSection}>
+                {isCrazifying ? (
+                    <div className={styles.crazifyingContainer}>
+                        <div className={styles.crazifyingSpinner}/>
+                        <span>CRAZIFYING: {cSoundDuration.toFixed(2)}s</span>
+                    </div>
+                ) : (
+                    file && (
+                        <div className={styles.filenameGroup}>
+                            <label className={styles.controlLabel}>
+                                Output File:
+                            </label>
+                            <input
+                                type="text"
+                                value={filename}
+                                onChange={(e) =>
+                                    setFilename(e.target.value)
+                                }
+                                className={styles.filenameInput}
+                            />
+                        </div>
+                    )
+                )}
+            </div>
+
             {file && (
-                <div>
-                    <label>
-                        Save as:{" "}
-                        <input
-                            type="text"
-                            value={filename}
-                            onChange={(e) => setFilename(e.target.value)}
-                            style={{ padding: "0.25rem", width: "250px" }}
-                        />
-                    </label>
+                <div className={styles.infoBox}>
+                    <p>
+                        **Current Csound Performance Duration:**{" "}
+                        **{cSoundDuration.toFixed(2)}s** (File Length: {fileDuration.toFixed(
+                        2
+                    )}s / Absolute Max: {MAX_ABSOLUTE_DURATION}s)
+                        <br/>
+                    </p>
                 </div>
             )}
-
-            {/* Browser info */}
-            <div
-                style={{
-                    fontSize: "0.9rem",
-                    color: "#555",
-                    textAlign: "justify",
-                    textAlignLast: "center",
-                    maxWidth: "400px",
-                    marginTop: "1rem",
-                }}
-            >
-                <strong>Save as…</strong>
-                <br />
-                By default, the crazified file will be saved in your Downloads folder.
-                <br />
-                You can configure your browser to ask for the save location before
-                downloading:
-                <br />
-                <em>Safari/Chrome:</em> Settings → Downloads → "Ask where to save each
-                file before downloading"
-            </div>
         </div>
     );
-
 }

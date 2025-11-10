@@ -20,7 +20,7 @@ export default function HomePage() {
             <img
                 src={logo}
                 alt="Sound Crazifier"
-                style={{ maxWidth: "42.5%", height: "auto" }}
+                style={{maxWidth: "42.5%", height: "auto"}}
             />
 
             <div
@@ -31,7 +31,8 @@ export default function HomePage() {
                 }}
             >
                 <p>
-                    Welcome to <strong>Sound Crazifier</strong> – your tool for experimental granular sound manipulation.
+                    Welcome to <strong>Sound Crazifier</strong> – your tool for experimental granular sound
+                    manipulation.
                 </p>
                 <p>
                     Upload an audio file, adjust the crazification level, and play or save your new sound!

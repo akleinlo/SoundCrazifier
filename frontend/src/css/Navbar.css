@@ -1,5 +1,5 @@
 .navbar {
-    background-color: rgba(60, 60, 90, 0.95); /* etwas heller, leicht transparent */
+    background-color: rgba(60, 60, 90, 0.95);
     padding: 1rem 2rem;
     display: flex;
     justify-content: center;

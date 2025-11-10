@@ -74,4 +74,8 @@ public class AudioProcessor {
             throw new IOException("SoX process interrupted", e);
         }
     }
+
+    public String getSoxExecutablePath() {
+        return soxExecutablePath;
+    }
 }
