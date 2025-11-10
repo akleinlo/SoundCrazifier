@@ -32,9 +32,9 @@ class TemporaryFileManagerTest {
         // GIVEN
         Path mockScoPath = Paths.get("/dummy/score.sco");
         String scoContent = """
-        i1 0 1
-        f1 0 0 1 "/temp/audio_file.wav" 0 0 0
-        """;
+                i1 0 1
+                f1 0 0 1 "/temp/audio_file.wav" 0 0 0
+                """;
 
         try (MockedStatic<Files> mockedFiles = Mockito.mockStatic(Files.class)) {
             mockedFiles.when(() -> Files.readString(mockScoPath)).thenReturn(scoContent);
@@ -55,9 +55,9 @@ class TemporaryFileManagerTest {
         // GIVEN
         Path mockScoPath = Paths.get("/dummy/score.sco");
         String scoContent = """
-        i1 0 1
-        f1 0 0 1 1 0 0 0
-        """;
+                i1 0 1
+                f1 0 0 1 1 0 0 0
+                """;
 
         try (MockedStatic<Files> mockedFiles = Mockito.mockStatic(Files.class)) {
             mockedFiles.when(() -> Files.readString(mockScoPath)).thenReturn(scoContent);

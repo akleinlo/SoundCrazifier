@@ -145,6 +145,49 @@ public class GranulatorController {
         }
     }
 
+    @PostMapping("/getDuration")
+    public ResponseEntity<Double> getDuration(@RequestParam("audioFile") MultipartFile audioFile) throws IOException {
+        String originalFilename = Optional.ofNullable(audioFile.getOriginalFilename()).orElse("audio-unknown");
+
+        String fileExtension = "";
+        int dotIndex = originalFilename.lastIndexOf('.');
+        if (dotIndex >= 0) {
+            fileExtension = originalFilename.substring(dotIndex);
+        }
+
+        Path tempFile = Files.createTempFile("audio-duration-", fileExtension);
+
+        Files.write(tempFile, audioFile.getBytes());
+        logger.info("Temporary file created for duration check: {}", tempFile);
+
+        try {
+            ProcessBuilder pb = new ProcessBuilder(
+                    audioProcessor.getSoxExecutablePath(),
+                    "--i", "-D",
+                    tempFile.toString()
+            );
+            pb.redirectErrorStream(true);
+            Process process = pb.start();
+
+            String output = new String(process.getInputStream().readAllBytes()).trim();
+            int exitCode = process.waitFor();
+            if (exitCode != 0) {
+                String errorMessage = String.format("SoX exited with code %d while checking duration. Output: %s", exitCode, output);
+                logger.error(errorMessage);
+                throw new IOException(errorMessage);
+            }
+
+            double duration = Double.parseDouble(output);
+            return ResponseEntity.ok(duration);
+
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("SoX process interrupted", e);
+        } finally {
+            Files.deleteIfExists(tempFile);
+        }
+    }
+
 
     @PostMapping("/stop")
     public String stopAudio() {
