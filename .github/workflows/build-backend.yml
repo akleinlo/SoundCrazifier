@@ -62,4 +62,5 @@ jobs:
         working-directory: backend
         run: |
           mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
-            -Dsonar.projectKey=akleinlo_SoundCrazifier_backend
+            -Dsonar.projectKey=akleinlo_SoundCrazifier_backend \
+            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco-merged/jacoco.xml
