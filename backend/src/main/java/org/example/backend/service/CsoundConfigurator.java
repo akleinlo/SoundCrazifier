@@ -61,7 +61,8 @@ public class CsoundConfigurator {
         try {
             Files.setPosixFilePermissions(tempDir,
                     PosixFilePermissions.fromString("rwx------"));
-        } catch (UnsupportedOperationException ignore) {
+        } catch (UnsupportedOperationException e) {
+            logger.warn("Cannot set POSIX permissions for temporary directory {}", tempDir, e);
         }
 
         String baseName = "hrtf-" + sampleRate + "-";

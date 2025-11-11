@@ -160,7 +160,8 @@ public class GranulatorController {
         try {
             Files.setPosixFilePermissions(tempFile,
                     PosixFilePermissions.fromString("rw-------"));
-        } catch (UnsupportedOperationException ignore) {
+        } catch (UnsupportedOperationException e) {
+            logger.warn("Cannot set POSIX permissions for {}", tempFile, e);
         }
 
         Files.write(tempFile, audioFile.getBytes());
