@@ -495,7 +495,6 @@ class GranulatorServiceTest {
         assertFalse(result, "Cooldown should be inactive because the last stop time was a long time ago.");
     }
 
-
     @Test
     @DisplayName("handleRealCsound (Offline): Calls performGranulation synchronously and cleans up")
     void handleRealCsound_offline_callsPerformGranulationDirectly() throws Exception {
