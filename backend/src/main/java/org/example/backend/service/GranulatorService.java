@@ -30,6 +30,8 @@ public class GranulatorService {
     private static final long COOLDOWN_MS = 1000;
     private static final long CLEANUP_WAIT_MS = 1000;
     private static final long CLEANUP_FINALIZE_DELAY = 50;
+    private static final String WARN_CANNOT_SET_POSIX =
+            "Cannot set POSIX permissions for temporary directory {}";
 
     // ===========================
     // LOGGER
@@ -157,7 +159,7 @@ public class GranulatorService {
             Files.setPosixFilePermissions(tempDir,
                     PosixFilePermissions.fromString("rwx------"));
         } catch (UnsupportedOperationException e) {
-            logger.warn("Cannot set POSIX permissions for temporary directory {}", tempDir, e);
+            logger.warn(WARN_CANNOT_SET_POSIX, tempDir, e);
         }
 
         Path effectiveOutput = outputPath != null
@@ -277,13 +279,13 @@ public class GranulatorService {
             try {
                 Files.setPosixFilePermissions(tempDir, PosixFilePermissions.fromString("rwx------"));
             } catch (UnsupportedOperationException e) {
-                logger.warn("Cannot set POSIX permissions for temporary directory {}", tempDir, e);
+                logger.warn(WARN_CANNOT_SET_POSIX, tempDir, e);
             }
             effectiveOutput = Files.createTempFile(tempDir, "crazified-", ".wav");
             try {
                 Files.setPosixFilePermissions(effectiveOutput, PosixFilePermissions.fromString("rw-------"));
             } catch (UnsupportedOperationException e) {
-                logger.warn("Cannot set POSIX permissions for temporary directory {}", effectiveOutput, e);
+                logger.warn(WARN_CANNOT_SET_POSIX, effectiveOutput, e);
             }
         }
 
