@@ -1,0 +1,61 @@
+.infoPageContainer {
+    max-width: 800px;
+    margin: 5rem auto;
+    line-height: 1.7;
+    text-align: justify;
+    text-align-last: center;
+    padding: 0 1.5rem;
+}
+
+.infoTitle {
+    text-align: center;
+    margin-bottom: 2.5rem;
+}
+
+.infoParagraph {
+    margin-bottom: 1.5rem;
+}
+
+.infoSubtitle {
+    text-align: center;
+    margin-top: 3rem;
+    margin-bottom: 1rem;
+}
+
+.infoList {
+    padding-left: 1.2rem;
+    margin-bottom: 2.5rem;
+}
+
+.infoLink {
+    transition: transform 0.2s;
+    display: inline-block;
+}
+
+.infoLink:hover,
+.infoLink:focus {
+    transform: scale(1.05);
+}
+
+.infoKofiButtonContainer {
+    text-align: center;
+    margin-top: 2rem;
+}
+
+.infoKofiButton {
+    display: inline-block;
+    padding: 0.6em 1.2em;
+    font-size: 1rem;
+    border-radius: 8px;
+    background-color: #29abe0;
+    color: #fff;
+    text-decoration: none;
+    font-weight: bold;
+    transition: transform 0.2s, background-color 0.2s;
+}
+
+.infoKofiButton:hover,
+.infoKofiButton:focus {
+    transform: scale(1.05);
+    background-color: #238ac2;
+}

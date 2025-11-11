@@ -1,0 +1,25 @@
+.homePageContainer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    min-height: calc(100vh - 4rem); /* 100vh minus Navbar-Höhe */
+    padding: 6rem 1.25rem 2rem 1.25rem;
+    text-align: center;
+    gap: 2rem;
+    box-sizing: border-box;
+    background: linear-gradient(180deg, #1a1a2e, #3b3b5e);
+    color: #ffffff;
+}
+
+.homePageLogo {
+    height: 900px;
+    width: auto;
+    max-width: 100%;
+}
+
+.homePageText {
+    max-width: 650px;
+    font-size: 1.1rem;
+    line-height: 1.5;
+}
