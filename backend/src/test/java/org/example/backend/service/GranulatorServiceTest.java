@@ -233,10 +233,10 @@ class GranulatorServiceTest {
         when(mockPrepResult.tempDir()).thenReturn(tempDir);
 
         doReturn(mockPrepResult).when(granulatorService).prepareOutputAndHrtf(
-                eq(orc), eq(sco), eq(output), eq(96000), eq(false));
+                orc, sco, output, 96000, false);
 
         doNothing().when(granulatorService).configureAndCompileCsound(
-                any(), any(), any(), any(), anyBoolean(), anyInt());
+                any(), any(), any(), any(), anyBoolean());
         doNothing().when(granulatorService).performLoop(any(), anyInt());
 
         // WHEN
@@ -252,10 +252,9 @@ class GranulatorServiceTest {
                 orcString,
                 scoString,
                 output,
-                false,
-                96000);
+                false);
 
-        verify(granulatorService, times(1)).performLoop(eq(mockCsound), eq(96000));
+        verify(granulatorService, times(1)).performLoop(mockCsound, 96000);
 
         verify(mockFileManager, times(1)).cleanupTempDirectory(tempDir);
     }
@@ -279,14 +278,14 @@ class GranulatorServiceTest {
 
         when(mockPrepResult.orc()).thenReturn(orcString);
         when(mockPrepResult.sco()).thenReturn(scoString);
-        when(mockPrepResult.effectiveOutput()).thenReturn(output); // Output is null (Path)
+        when(mockPrepResult.effectiveOutput()).thenReturn(output);
         when(mockPrepResult.tempDir()).thenReturn(tempDir);
 
         doReturn(mockPrepResult).when(granulatorService).prepareOutputAndHrtf(
-                eq(orc), eq(sco), eq(output), eq(LIVE_SR), eq(true));
+                orc, sco, output, LIVE_SR, true);
 
         doNothing().when(granulatorService).configureAndCompileCsound(
-                any(), any(), any(), any(), anyBoolean(), anyInt());
+                any(), any(), any(), any(), anyBoolean());
         doNothing().when(granulatorService).performLoop(any(), anyInt());
 
         // WHEN
@@ -301,8 +300,7 @@ class GranulatorServiceTest {
                 eq(orcString),
                 eq(scoString),
                 isNull(),
-                eq(true),
-                eq(LIVE_SR));
+                eq(true));
 
         verify(granulatorService, times(1)).performLoop(mockCsound, LIVE_SR);
 
@@ -333,7 +331,7 @@ class GranulatorServiceTest {
 
         final RuntimeException failure = new RuntimeException("Csound compile failed");
         doThrow(failure).when(granulatorService).configureAndCompileCsound(
-                any(), any(), any(), any(), anyBoolean(), anyInt());
+                any(), any(), any(), any(), anyBoolean());
 
         // WHEN + THEN
         IOException ex = assertThrows(IOException.class, () ->
@@ -350,8 +348,7 @@ class GranulatorServiceTest {
                 eq(orcString),
                 eq(scoString),
                 any(), // output
-                eq(false),
-                eq(96000));
+                eq(false));
     }
 
 
@@ -877,7 +874,6 @@ class GranulatorServiceTest {
         String orcContent = "instr 1\n ...";
         String scoContent = "i1 0 1\n ...";
         Path outputPath = Paths.get("/output/test.wav");
-        int sampleRate = 96000;
 
         when(mockCsound.CompileOrc(anyString())).thenReturn(0);
         when(mockCsound.ReadScore(anyString())).thenReturn(0);
@@ -887,7 +883,7 @@ class GranulatorServiceTest {
 
         // WHEN
         granulatorService.configureAndCompileCsound(
-                mockCsound, orcContent, scoContent, outputPath, false, sampleRate); // outputLive=false
+                mockCsound, orcContent, scoContent, outputPath, false); // outputLive=false
 
         // THEN
         verify(mockConfigurator, times(1)).configureCsound(
@@ -909,7 +905,6 @@ class GranulatorServiceTest {
         String orcContent = "live instr 1\n ...";
         String scoContent = "i1 0 1\n ...";
         Path outputPath = null;
-        int sampleRate = 44100;
 
         when(mockCsound.CompileOrc(anyString())).thenReturn(0);
         when(mockCsound.ReadScore(anyString())).thenReturn(0);
@@ -919,7 +914,7 @@ class GranulatorServiceTest {
 
         // WHEN
         granulatorService.configureAndCompileCsound(
-                mockCsound, orcContent, scoContent, outputPath, true, sampleRate);
+                mockCsound, orcContent, scoContent, outputPath, true);
 
         // THEN
         verify(mockConfigurator, times(1)).configureCsound(
@@ -956,7 +951,7 @@ class GranulatorServiceTest {
         // WHEN + THEN
         IOException ex = assertThrows(IOException.class, () ->
                 granulatorService.configureAndCompileCsound(
-                        mockCsound, "orc", "sco", outputPath, false, 96000)
+                        mockCsound, "orc", "sco", outputPath, false)
         );
 
         assertEquals(expectedMessage, ex.getMessage(), "The correct failure message should be returned.");
@@ -1049,7 +1044,6 @@ class GranulatorServiceTest {
         Mockito.when(mockCsound.PerformKsmps())
                 .thenReturn(returns[0], Arrays.copyOfRange(returns, 1, returns.length));
 
-        // Field isRunningField Deklaration entfernt
         setRunningStatus(true);
 
         // WHEN
@@ -1078,7 +1072,6 @@ class GranulatorServiceTest {
         csoundField.setAccessible(true);
         csoundField.set(granulatorService, mockCsound);
 
-        // Field isRunningField Deklaration entfernt
         setRunningStatus(true);
 
         Field hrtfDirField = GranulatorService.class.getDeclaredField("currentHrtfTempDir");
@@ -1129,7 +1122,6 @@ class GranulatorServiceTest {
         csoundField.setAccessible(true);
         csoundField.set(granulatorService, null);
 
-        // Field isRunningField Deklaration entfernt
         setRunningStatus(true);
 
         Field hrtfDirField = GranulatorService.class.getDeclaredField("currentHrtfTempDir");

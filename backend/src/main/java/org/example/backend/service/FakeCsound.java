@@ -1,28 +1,41 @@
 package org.example.backend.service;
 
+/**
+ * Mock class for Csound, used exclusively for testing purposes
+ * (e.g., in GranulatorService). Methods are implemented as no-ops
+ * or simple returns to simulate success without running the Csound engine.
+ */
 public class FakeCsound {
-    public void SetOption(String option) {
+    public void setOption(String option) {
+        // Mock implementation: Does nothing.
     }
 
-    public void CompileOrc(String orc) {
+    public void compileOrc(String orc) {
+        // Mock implementation: Does nothing.
     }
 
-    public void ReadScore(String sco) {
+    public void readScore(String sco) {
+        // Mock implementation: Does nothing.
     }
 
-    public void Start() {
+    public void start() {
+        // Mock implementation: Start is a no-op, as no actual audio engine is running.
     }
 
-    public int PerformKsmps() {
+    public int performKsmps() {
+        // Mock implementation: Immediately returns 1 to simulate completion/stop for tests.
         return 1;
-    } // immediately stop
-
-    public void Stop() {
     }
 
-    public void Reset() {
+    public void stop() {
+        // Mock implementation: Does nothing.
     }
 
-    public void Cleanup() {
+    public void reset() {
+        // Mock implementation: Does nothing.
+    }
+
+    public void cleanup() {
+        // Mock implementation: Does nothing.
     }
 }

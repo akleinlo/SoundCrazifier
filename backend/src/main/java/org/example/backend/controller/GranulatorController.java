@@ -18,7 +18,10 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @CrossOrigin(origins = "http://localhost:5173")
 @RestController
@@ -27,6 +30,8 @@ public class GranulatorController {
     private static final Logger logger = LoggerFactory.getLogger(GranulatorController.class);
     private final GranulatorService granulatorService;
     private final AudioProcessor audioProcessor;
+
+    private static final Pattern FILE_EXTENSION_PATTERN = Pattern.compile("^\\.[a-zA-Z0-9]{1,5}$");
 
     // Maximum duration in seconds to support the grain opcode and avoid crashes
     private static final double MAX_DURATION_SECONDS = 60.0;
@@ -93,8 +98,8 @@ public class GranulatorController {
         String tempDir = System.getProperty("java.io.tmpdir");
         String originalFilename = Optional.ofNullable(audioFile.getOriginalFilename()).orElse("audio-unknown");
 
-        // Save temp file with original extension
-        String fileExtension = originalFilename.substring(originalFilename.lastIndexOf('.'));
+        String fileExtension = getSafeFileExtension(originalFilename).orElse(".wav");
+
         Path tempAudio = Files.createTempFile(Path.of(tempDir), "audio-", fileExtension);
         Path tempSco = Files.createTempFile(Path.of(tempDir), "granular-", ".sco");
 
@@ -148,14 +153,15 @@ public class GranulatorController {
     @PostMapping("/getDuration")
     public ResponseEntity<Double> getDuration(@RequestParam("audioFile") MultipartFile audioFile) throws IOException {
         String originalFilename = Optional.ofNullable(audioFile.getOriginalFilename()).orElse("audio-unknown");
-
-        String fileExtension = "";
-        int dotIndex = originalFilename.lastIndexOf('.');
-        if (dotIndex >= 0) {
-            fileExtension = originalFilename.substring(dotIndex);
-        }
+        String fileExtension = getSafeFileExtension(originalFilename).orElse(".wav");
 
         Path tempFile = Files.createTempFile("audio-duration-", fileExtension);
+
+        try {
+            Files.setPosixFilePermissions(tempFile,
+                    PosixFilePermissions.fromString("rw-------"));
+        } catch (UnsupportedOperationException ignore) {
+        }
 
         Files.write(tempFile, audioFile.getBytes());
         logger.info("Temporary file created for duration check: {}", tempFile);
@@ -188,6 +194,30 @@ public class GranulatorController {
         }
     }
 
+    // ===========================
+    // PRIVATE HELPER METHODS
+    // ===========================
+
+    private Optional<String> getSafeFileExtension(String filename) {
+        if (filename == null || filename.isBlank()) {
+            return Optional.empty();
+        }
+
+        int dotIndex = filename.lastIndexOf('.');
+        if (dotIndex < 0 || dotIndex == filename.length() - 1) {
+            return Optional.empty();
+        }
+
+        String extension = filename.substring(dotIndex).toLowerCase();
+
+        Matcher matcher = FILE_EXTENSION_PATTERN.matcher(extension);
+
+        if (matcher.matches()) {
+            return Optional.of(extension);
+        }
+
+        return Optional.empty();
+    }
 
     @PostMapping("/stop")
     public String stopAudio() {
