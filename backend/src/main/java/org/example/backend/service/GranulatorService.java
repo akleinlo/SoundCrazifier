@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -20,7 +21,7 @@ public class GranulatorService {
     // THREAD-SAFE STATUS FIELDS
     // ===========================
     private final AtomicBoolean isRunning = new AtomicBoolean(false);
-    private volatile Csound currentCsound = null;
+    private Csound currentCsound = null;
 
     // ===========================
     // TIMING / CONSTANTS
@@ -133,7 +134,7 @@ public class GranulatorService {
             tempDir = prep.tempDir();
 
             // --- Step 2: Configure and start Csound ---
-            configureAndCompileCsound(csound, prep.orc(), prep.sco(), effectiveOutput, outputLive, sampleRate);
+            configureAndCompileCsound(csound, prep.orc(), prep.sco(), effectiveOutput, outputLive);
 
             // --- Step 3: Performance loop ---
             performLoop(csound, sampleRate);
@@ -152,6 +153,12 @@ public class GranulatorService {
     protected void performGranulationFake(FakeCsound fake, Path orcPath, Path scoPath,
                                           Path outputPath) throws IOException {
         Path tempDir = Files.createTempDirectory("crazifier-");
+        try {
+            Files.setPosixFilePermissions(tempDir,
+                    PosixFilePermissions.fromString("rwx------"));
+        } catch (UnsupportedOperationException ignore) {
+        }
+
         Path effectiveOutput = outputPath != null
                 ? outputPath.toAbsolutePath()
                 : Files.createTempFile(tempDir, "crazified-", ".wav");
@@ -163,14 +170,14 @@ public class GranulatorService {
             String orc = Files.readString(orcPath);
             String sco = Files.readString(scoPath);
 
-            fake.SetOption("-o" + effectiveOutput);
+            fake.setOption("-o" + effectiveOutput);
             logger.debug("--- ORC content ---\n{}", orc);
             logger.debug("--- SCO content ---\n{}", sco);
 
-            fake.CompileOrc(orc);
-            fake.ReadScore(sco);
-            fake.Start();
-            fake.PerformKsmps();
+            fake.compileOrc(orc);
+            fake.readScore(sco);
+            fake.start();
+            fake.performKsmps();
 
             logger.info("Fake Crazification finished.");
         } finally {
@@ -266,7 +273,15 @@ public class GranulatorService {
 
         if (!outputLive && effectiveOutput == null) {
             tempDir = Files.createTempDirectory("crazifier-");
+            try {
+                Files.setPosixFilePermissions(tempDir, PosixFilePermissions.fromString("rwx------"));
+            } catch (UnsupportedOperationException ignore) {
+            }
             effectiveOutput = Files.createTempFile(tempDir, "crazified-", ".wav");
+            try {
+                Files.setPosixFilePermissions(effectiveOutput, PosixFilePermissions.fromString("rw-------"));
+            } catch (UnsupportedOperationException ignore) {
+            }
         }
 
         if (effectiveOutput != null && effectiveOutput.getParent() != null) {
@@ -291,7 +306,7 @@ public class GranulatorService {
     }
 
     protected void configureAndCompileCsound(Csound csound, String orc, String sco,
-                                             Path output, boolean outputLive, int sampleRate) throws IOException {
+                                             Path output, boolean outputLive) throws IOException {
         csoundConfigurator.configureCsound(csound, outputLive, output);
 
         csound.SetGlobalEnv("RAWADDF", "1");

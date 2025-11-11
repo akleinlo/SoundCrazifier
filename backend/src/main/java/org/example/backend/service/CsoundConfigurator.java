@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermissions;
 
 @Component
 public class CsoundConfigurator {
@@ -56,6 +57,12 @@ public class CsoundConfigurator {
      */
     public HrtfInjectionResult injectHrtfPaths(String orcContent, int sampleRate) throws IOException {
         Path tempDir = Files.createTempDirectory("csound-hrtf");
+
+        try {
+            Files.setPosixFilePermissions(tempDir,
+                    PosixFilePermissions.fromString("rwx------"));
+        } catch (UnsupportedOperationException ignore) {
+        }
 
         String baseName = "hrtf-" + sampleRate + "-";
         Path leftTemp = tempDir.resolve(baseName + "left.dat");

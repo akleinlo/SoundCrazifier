@@ -27,13 +27,13 @@ class AudioProcessorTest {
     Path tempDir;
 
     private AudioProcessor audioProcessorSpy;
-    private final String MOCK_SOX_PATH = "/usr/bin/sox";
+    private final String mockSoxPath = "/usr/bin/sox";
     private Path inputPath;
     private Path expectedResampledPath;
 
     @BeforeEach
     void setUp() throws IOException {
-        AudioProcessor realProcessor = new AudioProcessor(MOCK_SOX_PATH);
+        AudioProcessor realProcessor = new AudioProcessor(mockSoxPath);
         audioProcessorSpy = Mockito.spy(realProcessor);
 
         inputPath = tempDir.resolve("original.mp3");
@@ -73,7 +73,7 @@ class AudioProcessorTest {
             List<String> actualCommand = Arrays.asList(commandCaptor.getValue());
 
             List<String> expectedCommand = List.of(
-                    MOCK_SOX_PATH,
+                    mockSoxPath,
                     inputPath.toString(),
                     "-r", "96000",
                     expectedResampledPath.toString(),
