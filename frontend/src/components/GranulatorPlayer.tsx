@@ -186,7 +186,6 @@ export default function GranulatorPlayer() {
     };
 
     const isInputInvalid = newDurationInput <= 0 || newDurationInput > maxAllowedInput;
-    const isOverFileLength = cSoundDuration > fileDuration && fileDuration > 0;
 
     useEffect(() => {
         return () => {
@@ -263,9 +262,8 @@ export default function GranulatorPlayer() {
                                 SET
                             </button>
                         </div>
-
                         {durationError && (
-                            <span className={styles.warningText} style={{color: '#ffaa00'}}>
+                            <span className={`${styles.warningText} ${styles.errorText}`}>
                                 **Error:** {durationError}
                             </span>
                         )}
@@ -275,11 +273,6 @@ export default function GranulatorPlayer() {
                             </span>
                         )}
 
-                        {isOverFileLength && !isInputInvalid && !durationError && (
-                            <span className={styles.warningText} style={{color: 'orange'}}>
-                                {`**Note:** Granulation is looping because ${cSoundDuration.toFixed(2)}s > ${fileDuration.toFixed(2)}s.`}
-                            </span>
-                        )}
                     </div>
                 )}
             </div>
@@ -336,7 +329,7 @@ export default function GranulatorPlayer() {
             {file && (
                 <div className={styles.infoBox}>
                     <p>
-                        **Current Csound Performance Duration:**{" "}
+                        **Current Performance Duration:**{" "}
                         **{cSoundDuration.toFixed(2)}s** (File Length: {fileDuration.toFixed(
                         2
                     )}s / Absolute Max: {MAX_ABSOLUTE_DURATION}s)
