@@ -1170,6 +1170,30 @@ class GranulatorServiceTest {
         assertNull(csoundField.get(granulatorService), "currentCsound must be set to null.");
     }
 
+    @Test
+    void testPerformGranulationFake() throws IOException {
+        // GIVEN
+        FakeCsound fake = new FakeCsound();
+        Path orcPath = Files.createTempFile("test", ".orc");
+        Path scoPath = Files.createTempFile("test", ".sco");
+        Path outputPath = Files.createTempFile("test-output", ".wav");
+
+        // WHEN
+        Files.writeString(orcPath, "dummy orc content");
+        Files.writeString(scoPath, "dummy sco content");
+
+        granulatorService.performGranulationFake(fake, orcPath, scoPath, outputPath);
+
+        // THEN
+        assertTrue(Files.exists(outputPath));
+
+        // Cleanup
+        Files.deleteIfExists(orcPath);
+        Files.deleteIfExists(scoPath);
+        Files.deleteIfExists(outputPath);
+    }
+
+
 
 
 }
