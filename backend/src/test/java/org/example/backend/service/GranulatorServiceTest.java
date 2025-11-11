@@ -1193,7 +1193,28 @@ class GranulatorServiceTest {
         Files.deleteIfExists(outputPath);
     }
 
+    @Test
+    void testPerformGranulationFakeRealCall() throws IOException {
+        CsoundConfigurator configurator = new CsoundConfigurator();
+        TemporaryFileManager fileManager = new TemporaryFileManager();
+        GranulatorService service = new GranulatorService(configurator, fileManager);
 
+        FakeCsound fake = new FakeCsound();
+        Path orc = Files.createTempFile("test", ".orc");
+        Path sco = Files.createTempFile("test", ".sco");
+        Path output = Files.createTempFile("test-output", ".wav");
+
+        Files.writeString(orc, "dummy orc content");
+        Files.writeString(sco, "dummy sco content");
+
+        service.performGranulationFake(fake, orc, sco, output);
+
+        assertTrue(Files.exists(output));
+
+        Files.deleteIfExists(orc);
+        Files.deleteIfExists(sco);
+        Files.deleteIfExists(output);
+    }
 
 
 }
