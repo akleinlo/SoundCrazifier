@@ -11,7 +11,7 @@ h1, h2 {
     max-width: 100%;
     width: 100%;
     margin: 0;
-    padding: 2rem 4rem 4rem;
+    padding: 5rem 4rem 6rem;
 }
 
 .gui-section {
@@ -25,14 +25,3 @@ h1, h2 {
     align-items: center;
     gap: 2rem;
 }
-
-
-
-
-
-
-
-
-
-
-

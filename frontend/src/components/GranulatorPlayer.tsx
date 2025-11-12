@@ -330,8 +330,8 @@ export default function GranulatorPlayer() {
                 <div className={styles.infoBox}>
                     <p>
                         **Current Performance Duration:**{" "}
-                        **{cSoundDuration.toFixed(2)}s** (File Length: {fileDuration.toFixed(
-                        2
+                        **{cSoundDuration.toFixed(3)}s** (File Length: {fileDuration.toFixed(
+                        3
                     )}s / Absolute Max: {MAX_ABSOLUTE_DURATION}s)
                         <br/>
                     </p>

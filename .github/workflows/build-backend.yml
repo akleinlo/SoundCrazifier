@@ -13,12 +13,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Code auschecken
+      # 1️⃣ check out Code
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # 2️⃣ Java einrichten
+      # 2️⃣ Set up Java
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:
@@ -41,11 +41,11 @@ jobs:
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
 
-      # 5️⃣ SoX installieren und dann... 💡
+      # 5️⃣ install SoX and then... 💡
       - name: Install SoX
         run: sudo apt-get update && sudo apt-get install -y sox
 
-      # ...lokale Csound-JAR installieren 💡
+      # ...install local Csound-JAR 💡
       - name: Install local Csound JAR
         run: |
           mvn install:install-file \
@@ -55,7 +55,7 @@ jobs:
             -Dversion=6.18.1 \
             -Dpackaging=jar
 
-      # 6️⃣ Backend bauen + Sonar-Analyse
+      # 6️⃣ Build Backend + Sonar-Analysis
       - name: Build and analyze
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
