@@ -221,7 +221,7 @@ export default function GranulatorPlayer() {
             <div className={styles.controlsGrid}>
                 <div className={styles.controlGroup}>
                     <label className={styles.controlLabel}>
-                        Crazify Level: <span>{crazifyLevel}</span>
+                        Crazification Level: <span>{crazifyLevel}</span>
                     </label>
                     <input
                         type="range"
